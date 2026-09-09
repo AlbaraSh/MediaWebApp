@@ -1,5 +1,6 @@
--- MediaWebApp PostgreSQL schema
+-- MediaWebApp PostgreSQL schema (baseline)
 -- Requires PostgreSQL 15+ and pgvector extension
+-- Flyway V1 — catalog and supporting tables (no user_media)
 
 --------------------------------------------------
 -- Extensions
@@ -7,17 +8,6 @@
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE EXTENSION IF NOT EXISTS vector;
-
---------------------------------------------------
--- Enum types
---------------------------------------------------
-
-CREATE TYPE user_media_status AS ENUM (
-  'PLANNED',
-  'WATCHING',
-  'COMPLETED',
-  'DROPPED'
-);
 
 --------------------------------------------------
 -- Trigger: auto-update updated_at
@@ -90,32 +80,6 @@ CREATE TABLE media_genres (
   genre_id UUID NOT NULL REFERENCES genres (id) ON DELETE CASCADE,
   PRIMARY KEY (media_id, genre_id)
 );
-
---------------------------------------------------
--- User ↔ Media
---------------------------------------------------
-
-CREATE TABLE user_media (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id     UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-  media_id    UUID NOT NULL REFERENCES media (id) ON DELETE CASCADE,
-  status      user_media_status NOT NULL,
-  rating      NUMERIC(2,1)
-               CHECK (rating IS NULL OR (rating >= 1 AND rating <= 10)),
-  review      TEXT,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  UNIQUE (user_id, media_id)
-);
-
-CREATE INDEX idx_user_media_user_id ON user_media (user_id);
-CREATE INDEX idx_user_media_media_id ON user_media (media_id);
-CREATE INDEX idx_user_media_user_status ON user_media (user_id, status);
-
-CREATE TRIGGER trg_user_media_updated_at
-BEFORE UPDATE ON user_media
-FOR EACH ROW
-EXECUTE FUNCTION set_updated_at();
 
 --------------------------------------------------
 -- Embeddings
