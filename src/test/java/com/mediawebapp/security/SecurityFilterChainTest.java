@@ -1,0 +1,142 @@
+package com.mediawebapp.security;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import com.mediawebapp.controller.MediaController;
+import com.mediawebapp.controller.UserMediaController;
+import com.mediawebapp.dto.MediaResponseDTO;
+import com.mediawebapp.dto.MediaTypeDTO;
+import com.mediawebapp.exception.GlobalExceptionHandler;
+import com.mediawebapp.service.MediaService;
+import com.mediawebapp.service.UserMediaService;
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
+
+/**
+ * Exercises the real JWT filter chain. Do not import {@link TestSecurityConfig}
+ * here — that bypass would make the 401 assertion pass for the wrong reason.
+ */
+@ActiveProfiles("test")
+@WebMvcTest(controllers = {UserMediaController.class, MediaController.class})
+@Import({
+		SecurityConfig.class,
+		JwtService.class,
+		JwtCurrentUserProvider.class,
+		JsonAuthenticationEntryPoint.class,
+		JsonAccessDeniedHandler.class,
+		GlobalExceptionHandler.class
+})
+class SecurityFilterChainTest {
+
+	@Autowired
+	private MockMvc mockMvc;
+
+	@Autowired
+	private JwtService jwtService;
+
+	@MockitoBean
+	private UserMediaService userMediaService;
+
+	@MockitoBean
+	private MediaService mediaService;
+
+	private final UUID userId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+	private final UUID mediaTypeId = UUID.fromString("5f73d14b-4df1-499f-8fa9-ba5a2e0c4421");
+
+	@Test
+	void protectedEndpoint_withoutToken_returns401() throws Exception {
+		mockMvc.perform(get("/api/user-media"))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.error").value("Unauthorized"))
+				.andExpect(jsonPath("$.status").value(401));
+	}
+
+	@Test
+	void protectedEndpoint_withValidToken_succeeds() throws Exception {
+		when(userMediaService.getAllForUser(userId)).thenReturn(List.of());
+		String token = jwtService.generateToken(userId, "alice@example.com");
+
+		mockMvc.perform(get("/api/user-media")
+						.header("Authorization", "Bearer " + token))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$").isArray());
+	}
+
+	@Test
+	void mediaWrite_withoutToken_returns401() throws Exception {
+		String body = """
+				{
+				  "title": "The Matrix",
+				  "mediaTypeId": "%s"
+				}
+				""".formatted(mediaTypeId);
+
+		mockMvc.perform(post("/api/media")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.error").value("Unauthorized"))
+				.andExpect(jsonPath("$.status").value(401));
+	}
+
+	@Test
+	void mediaWrite_withValidToken_succeeds() throws Exception {
+		UUID mediaId = UUID.fromString("378374f4-700b-422a-80f8-a3a802925fb7");
+		when(mediaService.createMedia(any())).thenReturn(new MediaResponseDTO(
+				mediaId,
+				"The Matrix",
+				null,
+				null,
+				new MediaTypeDTO(mediaTypeId, "Movie"),
+				Instant.parse("2026-09-13T08:00:00Z"),
+				Instant.parse("2026-09-13T08:00:00Z")
+		));
+		String token = jwtService.generateToken(userId, "alice@example.com");
+
+		String body = """
+				{
+				  "title": "The Matrix",
+				  "mediaTypeId": "%s"
+				}
+				""".formatted(mediaTypeId);
+
+		mockMvc.perform(post("/api/media")
+						.header("Authorization", "Bearer " + token)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.title").value("The Matrix"));
+	}
+
+	@Test
+	void mediaRead_withoutToken_succeeds() throws Exception {
+		when(mediaService.getAllMedia()).thenReturn(List.of());
+
+		mockMvc.perform(get("/api/media"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$").isArray());
+	}
+
+	@Test
+	void protectedEndpoint_withInvalidToken_returns401() throws Exception {
+		mockMvc.perform(get("/api/user-media")
+						.header("Authorization", "Bearer not-a-real-jwt"))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.error").value("Invalid or expired JWT"))
+				.andExpect(jsonPath("$.status").value(401));
+	}
+}
