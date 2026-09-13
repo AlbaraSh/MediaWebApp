@@ -60,4 +60,30 @@ public class GlobalExceptionHandler {
 		);
 		return ResponseEntity.badRequest().body(body);
 	}
+
+	/**
+	 * Maps failed login (unknown email or wrong password) to HTTP 401.
+	 */
+	@ExceptionHandler(InvalidCredentialsException.class)
+	public ResponseEntity<ApiErrorResponse> handleInvalidCredentials(
+			InvalidCredentialsException exception) {
+		ApiErrorResponse body = ApiErrorResponse.of(
+				exception.getMessage(),
+				HttpStatus.UNAUTHORIZED.value()
+		);
+		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(body);
+	}
+
+	/**
+	 * Maps unique-constraint collisions (email/username) to HTTP 409.
+	 */
+	@ExceptionHandler(DuplicateResourceException.class)
+	public ResponseEntity<ApiErrorResponse> handleDuplicateResource(
+			DuplicateResourceException exception) {
+		ApiErrorResponse body = ApiErrorResponse.of(
+				exception.getMessage(),
+				HttpStatus.CONFLICT.value()
+		);
+		return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
+	}
 }

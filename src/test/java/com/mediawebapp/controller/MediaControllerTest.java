@@ -1,9 +1,13 @@
 package com.mediawebapp.controller;
 
+import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -11,6 +15,7 @@ import com.mediawebapp.dto.MediaResponseDTO;
 import com.mediawebapp.dto.MediaTypeDTO;
 import com.mediawebapp.exception.GlobalExceptionHandler;
 import com.mediawebapp.exception.ResourceNotFoundException;
+import com.mediawebapp.security.TestSecurityConfig;
 import com.mediawebapp.service.MediaService;
 import java.time.Instant;
 import java.util.List;
@@ -24,7 +29,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(MediaController.class)
-@Import(GlobalExceptionHandler.class)
+@Import({GlobalExceptionHandler.class, TestSecurityConfig.class})
 class MediaControllerTest {
 
 	@Autowired
@@ -80,6 +85,16 @@ class MediaControllerTest {
 				.andExpect(jsonPath("$[0].mediaType.name").value("Movie"));
 	}
 
+	/** GET /api/media returns 200 with an empty array when the catalog is empty. */
+	@Test
+	void getAllMedia_returns200AndEmptyList() throws Exception {
+		when(mediaService.getAllMedia()).thenReturn(List.of());
+
+		mockMvc.perform(get("/api/media"))
+				.andExpect(status().isOk())
+				.andExpect(content().json("[]"));
+	}
+
 	/** GET /api/media/{id} returns 200 and the media JSON when the id exists. */
 	@Test
 	void getMediaById_returns200() throws Exception {
@@ -104,6 +119,67 @@ class MediaControllerTest {
 				.andExpect(jsonPath("$.status").value(404));
 	}
 
+	/** GET /api/media/{id} with a non-UUID path value is rejected by argument binding. */
+	@Test
+	void getMediaById_returns400WhenIdNotUuid() throws Exception {
+		mockMvc.perform(get("/api/media/{id}", "not-a-uuid"))
+				.andExpect(status().isBadRequest());
+
+		verify(mediaService, never()).getMediaById(any());
+	}
+
+	/** POST with optional description/releaseYear omitted returns 201. */
+	@Test
+	void createMedia_returns201WhenOptionalFieldsOmitted() throws Exception {
+		MediaResponseDTO response = new MediaResponseDTO(
+				mediaId,
+				"Untitled",
+				null,
+				null,
+				new MediaTypeDTO(mediaTypeId, "Movie"),
+				Instant.parse("2026-09-07T09:31:11.874953Z"),
+				Instant.parse("2026-09-07T09:31:11.874953Z")
+		);
+		when(mediaService.createMedia(any())).thenReturn(response);
+
+		String requestBody = """
+				{
+				  "title": "Untitled",
+				  "mediaTypeId": "%s"
+				}
+				""".formatted(mediaTypeId);
+
+		mockMvc.perform(post("/api/media")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(requestBody))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.title").value("Untitled"))
+				.andExpect(jsonPath("$.description").value(nullValue()))
+				.andExpect(jsonPath("$.releaseYear").value(nullValue()));
+	}
+
+	/** POST returns 404 when the referenced media type does not exist. */
+	@Test
+	void createMedia_returns404WhenMediaTypeMissing() throws Exception {
+		when(mediaService.createMedia(any()))
+				.thenThrow(new ResourceNotFoundException("Media type not found with id: " + mediaTypeId));
+
+		String requestBody = """
+				{
+				  "title": "The Matrix",
+				  "releaseYear": 1999,
+				  "mediaTypeId": "%s"
+				}
+				""".formatted(mediaTypeId);
+
+		mockMvc.perform(post("/api/media")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(requestBody))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.error").value("Media type not found with id: " + mediaTypeId))
+				.andExpect(jsonPath("$.status").value(404));
+	}
+
 	/** POST /api/media with a blank title returns 400 validation error on title. */
 	@Test
 	void createMedia_returns400WhenTitleBlank() throws Exception {
@@ -123,11 +199,74 @@ class MediaControllerTest {
 				.andExpect(jsonPath("$.error").value("Validation failed"))
 				.andExpect(jsonPath("$.status").value(400))
 				.andExpect(jsonPath("$.details.title").exists());
+
+		verify(mediaService, never()).createMedia(any());
+	}
+
+	/** POST with whitespace-only title fails @NotBlank validation. */
+	@Test
+	void createMedia_returns400WhenTitleWhitespaceOnly() throws Exception {
+		String requestBody = """
+				{
+				  "title": "   ",
+				  "mediaTypeId": "%s"
+				}
+				""".formatted(mediaTypeId);
+
+		mockMvc.perform(post("/api/media")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(requestBody))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("Validation failed"))
+				.andExpect(jsonPath("$.details.title").exists());
+
+		verify(mediaService, never()).createMedia(any());
+	}
+
+	/** POST without title returns 400 validation error on title. */
+	@Test
+	void createMedia_returns400WhenTitleMissing() throws Exception {
+		String requestBody = """
+				{
+				  "description": "No title",
+				  "releaseYear": 1999,
+				  "mediaTypeId": "%s"
+				}
+				""".formatted(mediaTypeId);
+
+		mockMvc.perform(post("/api/media")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(requestBody))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("Validation failed"))
+				.andExpect(jsonPath("$.details.title").exists());
+
+		verify(mediaService, never()).createMedia(any());
+	}
+
+	/** POST with title longer than 500 characters returns 400 on title. */
+	@Test
+	void createMedia_returns400WhenTitleTooLong() throws Exception {
+		String requestBody = """
+				{
+				  "title": "%s",
+				  "mediaTypeId": "%s"
+				}
+				""".formatted("a".repeat(501), mediaTypeId);
+
+		mockMvc.perform(post("/api/media")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(requestBody))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("Validation failed"))
+				.andExpect(jsonPath("$.details.title").exists());
+
+		verify(mediaService, never()).createMedia(any());
 	}
 
 	/** POST /api/media with releaseYear below the allowed range returns 400 on releaseYear. */
 	@Test
-	void createMedia_returns400WhenReleaseYearInvalid() throws Exception {
+	void createMedia_returns400WhenReleaseYearTooLow() throws Exception {
 		String requestBody = """
 				{
 				  "title": "Ancient Film",
@@ -144,6 +283,29 @@ class MediaControllerTest {
 				.andExpect(jsonPath("$.error").value("Validation failed"))
 				.andExpect(jsonPath("$.status").value(400))
 				.andExpect(jsonPath("$.details.releaseYear").exists());
+
+		verify(mediaService, never()).createMedia(any());
+	}
+
+	/** POST with releaseYear above 2100 returns 400 on releaseYear. */
+	@Test
+	void createMedia_returns400WhenReleaseYearTooHigh() throws Exception {
+		String requestBody = """
+				{
+				  "title": "Future Film",
+				  "releaseYear": 2101,
+				  "mediaTypeId": "%s"
+				}
+				""".formatted(mediaTypeId);
+
+		mockMvc.perform(post("/api/media")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(requestBody))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("Validation failed"))
+				.andExpect(jsonPath("$.details.releaseYear").exists());
+
+		verify(mediaService, never()).createMedia(any());
 	}
 
 	/** POST /api/media without mediaTypeId returns 400 validation error on mediaTypeId. */
@@ -164,6 +326,8 @@ class MediaControllerTest {
 				.andExpect(jsonPath("$.error").value("Validation failed"))
 				.andExpect(jsonPath("$.status").value(400))
 				.andExpect(jsonPath("$.details.mediaTypeId").exists());
+
+		verify(mediaService, never()).createMedia(any());
 	}
 
 	private MediaResponseDTO sampleResponse(String title, Short releaseYear) {

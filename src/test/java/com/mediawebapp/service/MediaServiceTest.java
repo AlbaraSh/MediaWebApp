@@ -23,6 +23,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -93,9 +94,39 @@ class MediaServiceTest {
 		assertThat(response.createdAt()).isNotNull();
 		assertThat(response.updatedAt()).isNotNull();
 
+		ArgumentCaptor<Media> captor = ArgumentCaptor.forClass(Media.class);
 		verify(mediaTypeRepository).findById(mediaTypeId);
-		verify(mediaRepository).saveAndFlush(any(Media.class));
+		verify(mediaRepository).saveAndFlush(captor.capture());
+		assertThat(captor.getValue().getMediaType()).isEqualTo(mediaType);
 		verify(entityManager).refresh(any(Media.class));
+	}
+
+	/** Create with optional description and releaseYear omitted still persists successfully. */
+	@Test
+	void shouldCreateMediaWithNullOptionalFields() {
+		MediaRequestDTO request = new MediaRequestDTO(
+				"Untitled",
+				null,
+				null,
+				mediaTypeId
+		);
+
+		when(mediaTypeRepository.findById(mediaTypeId)).thenReturn(Optional.of(mediaType));
+		when(mediaRepository.saveAndFlush(any(Media.class))).thenAnswer(invocation -> {
+			Media media = invocation.getArgument(0);
+			media.setId(mediaId);
+			media.setCreatedAt(Instant.parse("2026-09-07T09:31:11.874953Z"));
+			media.setUpdatedAt(Instant.parse("2026-09-07T09:31:11.874953Z"));
+			return media;
+		});
+
+		MediaResponseDTO response = mediaService.createMedia(request);
+
+		assertThat(response.title()).isEqualTo("Untitled");
+		assertThat(response.description()).isNull();
+		assertThat(response.releaseYear()).isNull();
+		assertThat(response.mediaType().id()).isEqualTo(mediaTypeId);
+		verify(mediaRepository).saveAndFlush(any(Media.class));
 	}
 
 	/** Create fails with ResourceNotFoundException when mediaTypeId does not exist; nothing is saved. */
@@ -132,6 +163,17 @@ class MediaServiceTest {
 		assertThat(responses.get(0).title()).isEqualTo("Inception");
 		assertThat(responses.get(0).mediaType().name()).isEqualTo("Movie");
 
+		verify(mediaRepository).findAllWithMediaType();
+	}
+
+	/** getAllMedia returns an empty list when the catalog has no rows. */
+	@Test
+	void shouldReturnEmptyListWhenNoMediaExists() {
+		when(mediaRepository.findAllWithMediaType()).thenReturn(List.of());
+
+		List<MediaResponseDTO> responses = mediaService.getAllMedia();
+
+		assertThat(responses).isEmpty();
 		verify(mediaRepository).findAllWithMediaType();
 	}
 
