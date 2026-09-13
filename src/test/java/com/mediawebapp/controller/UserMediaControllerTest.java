@@ -21,6 +21,7 @@ import com.mediawebapp.entity.UserMediaStatus;
 import com.mediawebapp.exception.GlobalExceptionHandler;
 import com.mediawebapp.exception.ResourceNotFoundException;
 import com.mediawebapp.security.CurrentUserProvider;
+import com.mediawebapp.security.TestSecurityConfig;
 import com.mediawebapp.service.UserMediaService;
 import java.time.Instant;
 import java.util.List;
@@ -35,7 +36,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(UserMediaController.class)
-@Import(GlobalExceptionHandler.class)
+@Import({GlobalExceptionHandler.class, TestSecurityConfig.class})
 class UserMediaControllerTest {
 
 	@Autowired

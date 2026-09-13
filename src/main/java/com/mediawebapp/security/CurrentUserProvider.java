@@ -7,7 +7,7 @@ import java.util.UUID;
  * <p>
  * Controllers call this and pass the UUID into the service layer. Services
  * never resolve identity themselves so business logic stays auth-agnostic.
- * Swap the implementation later (e.g. JWT) without changing services.
+ * Implemented by {@link JwtCurrentUserProvider}.
  */
 public interface CurrentUserProvider {
 
