@@ -1,20 +1,17 @@
 package com.mediawebapp.dto;
 
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import java.util.List;
 import java.util.UUID;
 
 /**
  * Incoming payload for creating a media item via {@code POST /api/media}.
- * <p>
- * Carries only what the client may supply. Database-owned fields
- * ({@code id}, timestamps) are intentionally omitted. Bean Validation
- * annotations enforce rules that mirror the PostgreSQL constraints where
- * practical, so invalid requests fail fast with {@code 400} before any
- * persistence attempt.
  */
 public record MediaRequestDTO(
 
@@ -29,6 +26,15 @@ public record MediaRequestDTO(
 		Short releaseYear,
 
 		@NotNull(message = "Media type id is required")
-		UUID mediaTypeId
+		UUID mediaTypeId,
+
+		List<String> genres,
+
+		@DecimalMin(value = "0.0", message = "Rating must be at least 0")
+		@DecimalMax(value = "10.0", message = "Rating must be at most 10")
+		Double rating,
+
+		@Min(value = 0, message = "Rating count must be at least 0")
+		Integer ratingCount
 ) {
 }
