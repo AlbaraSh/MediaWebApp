@@ -12,6 +12,7 @@ import com.mediawebapp.controller.UserMediaController;
 import com.mediawebapp.dto.MediaResponseDTO;
 import com.mediawebapp.dto.MediaTypeDTO;
 import com.mediawebapp.exception.GlobalExceptionHandler;
+import com.mediawebapp.service.ExternalMediaService;
 import com.mediawebapp.service.MediaService;
 import com.mediawebapp.service.UserMediaService;
 import java.time.Instant;
@@ -53,6 +54,9 @@ class SecurityFilterChainTest {
 
 	@MockitoBean
 	private MediaService mediaService;
+
+	@MockitoBean
+	private ExternalMediaService externalMediaService;
 
 	private final UUID userId = UUID.fromString("11111111-1111-1111-1111-111111111111");
 	private final UUID mediaTypeId = UUID.fromString("5f73d14b-4df1-499f-8fa9-ba5a2e0c4421");
@@ -101,6 +105,9 @@ class SecurityFilterChainTest {
 				"The Matrix",
 				null,
 				null,
+				List.of(),
+				null,
+				null,
 				new MediaTypeDTO(mediaTypeId, "Movie"),
 				Instant.parse("2026-09-13T08:00:00Z"),
 				Instant.parse("2026-09-13T08:00:00Z")
@@ -129,6 +136,32 @@ class SecurityFilterChainTest {
 		mockMvc.perform(get("/api/media"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$").isArray());
+	}
+
+	@Test
+	void mediaSearch_withoutToken_succeeds() throws Exception {
+		when(externalMediaService.search("matrix", "MOVIE")).thenReturn(List.of());
+
+		mockMvc.perform(get("/api/media/search")
+						.param("query", "matrix")
+						.param("type", "MOVIE"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$").isArray());
+	}
+
+	@Test
+	void mediaImport_withoutToken_returns401() throws Exception {
+		mockMvc.perform(post("/api/media/import")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{
+								  "provider": "tmdb",
+								  "externalId": "movie:550"
+								}
+								"""))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.error").value("Unauthorized"))
+				.andExpect(jsonPath("$.status").value(401));
 	}
 
 	@Test

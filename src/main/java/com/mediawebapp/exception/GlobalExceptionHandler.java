@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -85,5 +86,46 @@ public class GlobalExceptionHandler {
 				HttpStatus.CONFLICT.value()
 		);
 		return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
+	}
+
+	/**
+	 * Maps client-input errors that are not Bean Validation failures to HTTP 400.
+	 */
+	@ExceptionHandler(BadRequestException.class)
+	public ResponseEntity<ApiErrorResponse> handleBadRequest(BadRequestException exception) {
+		ApiErrorResponse body = exception.getDetails() == null
+				? ApiErrorResponse.of(exception.getMessage(), HttpStatus.BAD_REQUEST.value())
+				: ApiErrorResponse.of(
+						exception.getMessage(),
+						HttpStatus.BAD_REQUEST.value(),
+						exception.getDetails());
+		return ResponseEntity.badRequest().body(body);
+	}
+
+	/**
+	 * Maps upstream provider failures to HTTP 503. Messages are adapter-owned
+	 * and must never include raw provider payloads or request URIs.
+	 */
+	@ExceptionHandler(ExternalProviderException.class)
+	public ResponseEntity<ApiErrorResponse> handleExternalProvider(
+			ExternalProviderException exception) {
+		ApiErrorResponse body = ApiErrorResponse.of(
+				exception.getMessage(),
+				HttpStatus.SERVICE_UNAVAILABLE.value()
+		);
+		return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(body);
+	}
+
+	/**
+	 * Maps missing required query parameters (e.g. {@code type} on search) to HTTP 400.
+	 */
+	@ExceptionHandler(MissingServletRequestParameterException.class)
+	public ResponseEntity<ApiErrorResponse> handleMissingParameter(
+			MissingServletRequestParameterException exception) {
+		ApiErrorResponse body = ApiErrorResponse.of(
+				"Required parameter '" + exception.getParameterName() + "' is missing",
+				HttpStatus.BAD_REQUEST.value()
+		);
+		return ResponseEntity.badRequest().body(body);
 	}
 }
