@@ -1,5 +1,6 @@
 package com.mediawebapp.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -11,16 +12,19 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.mediawebapp.dto.MediaRequestDTO;
 import com.mediawebapp.dto.MediaResponseDTO;
 import com.mediawebapp.dto.MediaTypeDTO;
 import com.mediawebapp.exception.GlobalExceptionHandler;
 import com.mediawebapp.exception.ResourceNotFoundException;
 import com.mediawebapp.security.TestSecurityConfig;
+import com.mediawebapp.service.ExternalMediaService;
 import com.mediawebapp.service.MediaService;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
@@ -37,6 +41,9 @@ class MediaControllerTest {
 
 	@MockitoBean
 	private MediaService mediaService;
+
+	@MockitoBean
+	private ExternalMediaService externalMediaService;
 
 	private final UUID mediaId = UUID.fromString("378374f4-700b-422a-80f8-a3a802925fb7");
 	private final UUID mediaTypeId = UUID.fromString("5f73d14b-4df1-499f-8fa9-ba5a2e0c4421");
@@ -65,9 +72,57 @@ class MediaControllerTest {
 				.andExpect(jsonPath("$.releaseYear").value(1999))
 				.andExpect(jsonPath("$.mediaType.id").value(mediaTypeId.toString()))
 				.andExpect(jsonPath("$.mediaType.name").value("Movie"))
+				.andExpect(jsonPath("$.genres").isArray())
+				.andExpect(jsonPath("$.rating").value(nullValue()))
+				.andExpect(jsonPath("$.ratingCount").value(nullValue()))
 				.andExpect(jsonPath("$.createdAt").exists())
 				.andExpect(jsonPath("$.updatedAt").exists())
-				.andExpect(jsonPath("$.mediaTypeId").doesNotExist());
+				.andExpect(jsonPath("$.mediaTypeId").doesNotExist())
+				.andExpect(jsonPath("$.ratingLastUpdatedAt").doesNotExist());
+	}
+
+	/** POST /api/media accepts optional genres, rating, and ratingCount used by the import-parity create path. */
+	@Test
+	void createMedia_acceptsOptionalGenresAndRating() throws Exception {
+		when(mediaService.createMedia(any())).thenReturn(new MediaResponseDTO(
+				mediaId,
+				"The Matrix",
+				"A computer hacker learns about reality.",
+				(short) 1999,
+				List.of("Action", "Sci-Fi"),
+				8.7,
+				18500,
+				new MediaTypeDTO(mediaTypeId, "Movie"),
+				Instant.parse("2026-09-07T09:31:11.874953Z"),
+				Instant.parse("2026-09-07T09:31:11.874953Z")
+		));
+
+		String requestBody = """
+				{
+				  "title": "The Matrix",
+				  "description": "A computer hacker learns about reality.",
+				  "releaseYear": 1999,
+				  "mediaTypeId": "%s",
+				  "genres": ["action", "Sci-Fi"],
+				  "rating": 8.7,
+				  "ratingCount": 18500
+				}
+				""".formatted(mediaTypeId);
+
+		mockMvc.perform(post("/api/media")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(requestBody))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.genres[0]").value("Action"))
+				.andExpect(jsonPath("$.genres[1]").value("Sci-Fi"))
+				.andExpect(jsonPath("$.rating").value(8.7))
+				.andExpect(jsonPath("$.ratingCount").value(18500));
+
+		ArgumentCaptor<MediaRequestDTO> captor = ArgumentCaptor.forClass(MediaRequestDTO.class);
+		verify(mediaService).createMedia(captor.capture());
+		assertThat(captor.getValue().genres()).containsExactly("action", "Sci-Fi");
+		assertThat(captor.getValue().rating()).isEqualTo(8.7);
+		assertThat(captor.getValue().ratingCount()).isEqualTo(18500);
 	}
 
 	/** GET /api/media returns 200 and a JSON array of media items. */
@@ -134,6 +189,9 @@ class MediaControllerTest {
 		MediaResponseDTO response = new MediaResponseDTO(
 				mediaId,
 				"Untitled",
+				null,
+				null,
+				List.of(),
 				null,
 				null,
 				new MediaTypeDTO(mediaTypeId, "Movie"),
@@ -336,6 +394,9 @@ class MediaControllerTest {
 				title,
 				"A computer hacker learns about reality.",
 				releaseYear,
+				List.of(),
+				null,
+				null,
 				new MediaTypeDTO(mediaTypeId, "Movie"),
 				Instant.parse("2026-09-07T09:31:11.874953Z"),
 				Instant.parse("2026-09-07T09:31:11.874953Z")
