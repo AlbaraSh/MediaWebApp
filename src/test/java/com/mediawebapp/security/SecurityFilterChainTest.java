@@ -8,12 +8,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.mediawebapp.controller.MediaController;
+import com.mediawebapp.controller.RecommendationController;
 import com.mediawebapp.controller.UserMediaController;
 import com.mediawebapp.dto.MediaResponseDTO;
 import com.mediawebapp.dto.MediaTypeDTO;
+import com.mediawebapp.dto.RecommendationResponseDTO;
 import com.mediawebapp.exception.GlobalExceptionHandler;
 import com.mediawebapp.service.ExternalMediaService;
 import com.mediawebapp.service.MediaService;
+import com.mediawebapp.service.RecommendationService;
 import com.mediawebapp.service.UserMediaService;
 import java.time.Instant;
 import java.util.List;
@@ -32,7 +35,7 @@ import org.springframework.test.web.servlet.MockMvc;
  * here — that bypass would make the 401 assertion pass for the wrong reason.
  */
 @ActiveProfiles("test")
-@WebMvcTest(controllers = {UserMediaController.class, MediaController.class})
+@WebMvcTest(controllers = {UserMediaController.class, MediaController.class, RecommendationController.class})
 @Import({
 		SecurityConfig.class,
 		JwtService.class,
@@ -57,6 +60,9 @@ class SecurityFilterChainTest {
 
 	@MockitoBean
 	private ExternalMediaService externalMediaService;
+
+	@MockitoBean
+	private RecommendationService recommendationService;
 
 	private final UUID userId = UUID.fromString("11111111-1111-1111-1111-111111111111");
 	private final UUID mediaTypeId = UUID.fromString("5f73d14b-4df1-499f-8fa9-ba5a2e0c4421");
@@ -171,5 +177,36 @@ class SecurityFilterChainTest {
 				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.error").value("Invalid or expired JWT"))
 				.andExpect(jsonPath("$.status").value(401));
+	}
+
+	@Test
+	void similarRecommendations_withoutToken_succeeds() throws Exception {
+		UUID mediaId = UUID.fromString("378374f4-700b-422a-80f8-a3a802925fb7");
+		when(recommendationService.findSimilar(mediaId)).thenReturn(RecommendationResponseDTO.empty());
+
+		mockMvc.perform(get("/api/recommendations/similar/{mediaId}", mediaId))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.movies").isArray());
+	}
+
+	@Test
+	void userRecommendations_withoutToken_returns401() throws Exception {
+		mockMvc.perform(get("/api/recommendations/user").param("type", "MOVIE"))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.error").value("Unauthorized"))
+				.andExpect(jsonPath("$.status").value(401));
+	}
+
+	@Test
+	void userRecommendations_withValidToken_succeeds() throws Exception {
+		when(recommendationService.recommendForUser(userId, "MOVIE"))
+				.thenReturn(RecommendationResponseDTO.empty());
+		String token = jwtService.generateToken(userId, "alice@example.com");
+
+		mockMvc.perform(get("/api/recommendations/user")
+						.param("type", "MOVIE")
+						.header("Authorization", "Bearer " + token))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.movies").isArray());
 	}
 }

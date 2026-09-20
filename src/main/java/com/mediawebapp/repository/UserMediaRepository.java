@@ -45,6 +45,17 @@ public interface UserMediaRepository extends JpaRepository<UserMedia, UUID> {
 			@Param("userId") UUID userId,
 			@Param("status") UserMediaStatus status);
 
+	@Query("""
+			SELECT DISTINCT um FROM UserMedia um
+			JOIN FETCH um.media m
+			JOIN FETCH m.mediaType
+			LEFT JOIN FETCH m.genres
+			WHERE um.userId = :userId AND um.rating >= :minRating
+			""")
+	List<UserMedia> findAllByUserIdAndRatingGreaterThanEqualWithMedia(
+			@Param("userId") UUID userId,
+			@Param("minRating") int minRating);
+
 	boolean existsByUserIdAndMedia_Id(UUID userId, UUID mediaId);
 
 	void deleteByUserIdAndMedia_Id(UUID userId, UUID mediaId);
