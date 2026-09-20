@@ -19,7 +19,12 @@ import org.springframework.web.client.RestClient;
  * outside a database transaction.
  */
 @Configuration
-@EnableConfigurationProperties({TmdbProperties.class, RawgProperties.class, JikanProperties.class})
+@EnableConfigurationProperties({
+		TmdbProperties.class,
+		RawgProperties.class,
+		JikanProperties.class,
+		OpenAiProperties.class
+})
 public class ExternalApiConfig {
 
 	private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(3);

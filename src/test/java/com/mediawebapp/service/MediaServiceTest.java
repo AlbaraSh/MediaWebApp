@@ -3,6 +3,8 @@ package com.mediawebapp.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -45,6 +47,9 @@ class MediaServiceTest {
 	@Mock
 	private GenreService genreService;
 
+	@Mock
+	private MediaEmbeddingService mediaEmbeddingService;
+
 	private MediaMapper mediaMapper;
 	private MediaService mediaService;
 
@@ -60,7 +65,8 @@ class MediaServiceTest {
 				mediaTypeRepository,
 				mediaMapper,
 				entityManager,
-				genreService
+				genreService,
+				mediaEmbeddingService
 		);
 
 		mediaTypeId = UUID.randomUUID();
@@ -112,6 +118,11 @@ class MediaServiceTest {
 		verify(mediaRepository).saveAndFlush(captor.capture());
 		assertThat(captor.getValue().getMediaType()).isEqualTo(mediaType);
 		verify(entityManager).refresh(any(Media.class));
+		verify(mediaEmbeddingService).generateAndStore(
+				eq(mediaId),
+				eq("The Matrix"),
+				eq("A computer hacker learns about reality."),
+				any());
 	}
 
 	/** Create with optional description and releaseYear omitted still persists successfully. */
@@ -209,6 +220,7 @@ class MediaServiceTest {
 
 		verify(mediaRepository, never()).saveAndFlush(any(Media.class));
 		verify(entityManager, never()).refresh(any());
+		verify(mediaEmbeddingService, never()).generateAndStore(any(), any(), any(), any());
 	}
 
 	/** getAllMedia maps every persisted entity (with media type) into response DTOs. */
@@ -265,6 +277,36 @@ class MediaServiceTest {
 				.hasMessageContaining(mediaId.toString());
 
 		verify(mediaRepository).findByIdWithMediaType(mediaId);
+	}
+
+	@Test
+	void createMedia_succeedsWhenEmbeddingGenerationThrows() {
+		MediaRequestDTO request = new MediaRequestDTO(
+				"The Matrix",
+				null,
+				(short) 1999,
+				mediaTypeId,
+				null,
+				null,
+				null
+		);
+
+		when(mediaTypeRepository.findById(mediaTypeId)).thenReturn(Optional.of(mediaType));
+		when(mediaRepository.saveAndFlush(any(Media.class))).thenAnswer(invocation -> {
+			Media media = invocation.getArgument(0);
+			media.setId(mediaId);
+			media.setCreatedAt(Instant.parse("2026-09-07T09:31:11.874953Z"));
+			media.setUpdatedAt(Instant.parse("2026-09-07T09:31:11.874953Z"));
+			return media;
+		});
+		doThrow(new RuntimeException("openai down"))
+				.when(mediaEmbeddingService)
+				.generateAndStore(any(), any(), any(), any());
+
+		MediaResponseDTO response = mediaService.createMedia(request);
+
+		assertThat(response.title()).isEqualTo("The Matrix");
+		assertThat(response.id()).isEqualTo(mediaId);
 	}
 
 	private Media persistedMedia(String title, Short releaseYear) {
