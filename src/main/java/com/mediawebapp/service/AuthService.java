@@ -8,6 +8,7 @@ import com.mediawebapp.exception.DuplicateResourceException;
 import com.mediawebapp.exception.InvalidCredentialsException;
 import com.mediawebapp.repository.UserRepository;
 import com.mediawebapp.security.JwtService;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -68,7 +69,18 @@ public class AuthService {
 			throw new InvalidCredentialsException("Invalid email or password");
 		}
 
-		String token = jwtService.generateToken(user.getId(), user.getEmail());
+		String token = jwtService.generateToken(user.getId(), user.getEmail(), user.getTokenVersion());
 		return new AuthResponseDTO(token);
+	}
+
+	/**
+	 * Invalidates every JWT currently issued for this account by bumping
+	 * {@code token_version}. The client should also discard the token.
+	 */
+	@Transactional
+	public void logout(UUID userId) {
+		User user = userRepository.findById(userId)
+				.orElseThrow(() -> new InvalidCredentialsException("Invalid or expired JWT"));
+		user.setTokenVersion(user.getTokenVersion() + 1);
 	}
 }

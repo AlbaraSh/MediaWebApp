@@ -1,5 +1,6 @@
 package com.mediawebapp.security;
 
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -13,6 +14,13 @@ public interface CurrentUserProvider {
 
 	/**
 	 * @return the current user's primary key
+	 * @throws IllegalStateException if SecurityContext has no {@code AuthenticatedUser}
 	 */
 	UUID getCurrentUserId();
+
+	/**
+	 * Optional identity for public routes that may carry a JWT.
+	 * Empty when SecurityContext has no {@code AuthenticatedUser}.
+	 */
+	Optional<UUID> getCurrentUserIdIfPresent();
 }

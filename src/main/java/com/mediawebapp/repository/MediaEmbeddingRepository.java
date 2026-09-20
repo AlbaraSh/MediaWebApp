@@ -90,11 +90,9 @@ public class MediaEmbeddingRepository {
 			      SELECT 1 FROM user_media um
 			      WHERE um.user_id = :userId AND um.media_id = m.id
 			  )
-			ORDER BY CASE
-			  WHEN m.external_rating IS NULL OR m.external_rating_count IS NULL THEN 0
-			  ELSE (m.external_rating_count::float8 / (m.external_rating_count + :m)) * m.external_rating
-			     + (:m::float8 / (m.external_rating_count + :m)) * :globalAverage
-			END DESC, m.id ASC
+			ORDER BY
+			""" + BayesianQualitySql.CASE_ZERO_UNRATED + """
+			 DESC, m.id ASC
 			LIMIT :limit
 			""";
 

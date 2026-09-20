@@ -3,26 +3,31 @@ package com.mediawebapp.controller;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.mediawebapp.dto.MediaRequestDTO;
 import com.mediawebapp.dto.MediaResponseDTO;
 import com.mediawebapp.dto.MediaTypeDTO;
+import com.mediawebapp.dto.PageResponse;
+import com.mediawebapp.exception.BadRequestException;
 import com.mediawebapp.exception.GlobalExceptionHandler;
 import com.mediawebapp.exception.ResourceNotFoundException;
+import com.mediawebapp.security.CurrentUserProvider;
 import com.mediawebapp.security.TestSecurityConfig;
 import com.mediawebapp.service.ExternalMediaService;
 import com.mediawebapp.service.MediaService;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -45,8 +50,16 @@ class MediaControllerTest {
 	@MockitoBean
 	private ExternalMediaService externalMediaService;
 
+	@MockitoBean
+	private CurrentUserProvider currentUserProvider;
+
 	private final UUID mediaId = UUID.fromString("378374f4-700b-422a-80f8-a3a802925fb7");
 	private final UUID mediaTypeId = UUID.fromString("5f73d14b-4df1-499f-8fa9-ba5a2e0c4421");
+
+	@BeforeEach
+	void setUp() {
+		when(currentUserProvider.getCurrentUserIdIfPresent()).thenReturn(Optional.empty());
+	}
 
 	/** POST /api/media with a valid body returns 201 and the created media JSON. */
 	@Test
@@ -94,7 +107,8 @@ class MediaControllerTest {
 				18500,
 				new MediaTypeDTO(mediaTypeId, "Movie"),
 				Instant.parse("2026-09-07T09:31:11.874953Z"),
-				Instant.parse("2026-09-07T09:31:11.874953Z")
+				Instant.parse("2026-09-07T09:31:11.874953Z"),
+				null
 		));
 
 		String requestBody = """
@@ -125,29 +139,90 @@ class MediaControllerTest {
 		assertThat(captor.getValue().ratingCount()).isEqualTo(18500);
 	}
 
-	/** GET /api/media returns 200 and a JSON array of media items. */
+	/** GET /api/media returns 200 and a page envelope of media items. */
 	@Test
-	void getAllMedia_returns200AndList() throws Exception {
-		when(mediaService.getAllMedia()).thenReturn(List.of(
-				sampleResponse("The Matrix", (short) 1999)
-		));
+	void getAllMedia_returns200AndPageEnvelope() throws Exception {
+		when(mediaService.discover(any(), any(), any(), any(), any(), any(), any(), anyInt(), anyInt()))
+				.thenReturn(PageResponse.of(List.of(sampleResponse("The Matrix", (short) 1999)), 0, 20, 1));
 
 		mockMvc.perform(get("/api/media"))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$").isArray())
-				.andExpect(jsonPath("$[0].id").value(mediaId.toString()))
-				.andExpect(jsonPath("$[0].title").value("The Matrix"))
-				.andExpect(jsonPath("$[0].mediaType.name").value("Movie"));
+				.andExpect(jsonPath("$.content").isArray())
+				.andExpect(jsonPath("$.content[0].id").value(mediaId.toString()))
+				.andExpect(jsonPath("$.content[0].title").value("The Matrix"))
+				.andExpect(jsonPath("$.content[0].mediaType.name").value("Movie"))
+				.andExpect(jsonPath("$.page").value(0))
+				.andExpect(jsonPath("$.size").value(20))
+				.andExpect(jsonPath("$.totalElements").value(1))
+				.andExpect(jsonPath("$.totalPages").value(1));
 	}
 
-	/** GET /api/media returns 200 with an empty array when the catalog is empty. */
+	/** GET /api/media returns 200 with an empty page when the catalog is empty. */
 	@Test
-	void getAllMedia_returns200AndEmptyList() throws Exception {
-		when(mediaService.getAllMedia()).thenReturn(List.of());
+	void getAllMedia_returns200AndEmptyPage() throws Exception {
+		when(mediaService.discover(any(), any(), any(), any(), any(), any(), any(), anyInt(), anyInt()))
+				.thenReturn(PageResponse.of(List.of(), 0, 20, 0));
 
 		mockMvc.perform(get("/api/media"))
 				.andExpect(status().isOk())
-				.andExpect(content().json("[]"));
+				.andExpect(jsonPath("$.content").isArray())
+				.andExpect(jsonPath("$.content").isEmpty())
+				.andExpect(jsonPath("$.page").value(0))
+				.andExpect(jsonPath("$.size").value(20))
+				.andExpect(jsonPath("$.totalElements").value(0))
+				.andExpect(jsonPath("$.totalPages").value(0));
+	}
+
+	@Test
+	void getAllMedia_forwardsPaginationAndFilters() throws Exception {
+		when(mediaService.discover(any(), any(), any(), any(), any(), any(), any(), anyInt(), anyInt()))
+				.thenReturn(PageResponse.of(List.of(), 1, 10, 0));
+
+		mockMvc.perform(get("/api/media")
+						.param("type", "MOVIE")
+						.param("genre", "action")
+						.param("year", "1999")
+						.param("q", "matrix")
+						.param("sort", "TITLE")
+						.param("direction", "ASC")
+						.param("page", "1")
+						.param("size", "10"))
+				.andExpect(status().isOk());
+
+		verify(mediaService).discover(
+				Optional.empty(), "MOVIE", "action", 1999, "matrix", "TITLE", "ASC", 1, 10);
+	}
+
+	@Test
+	void getAllMedia_returns400WhenServiceRejectsType() throws Exception {
+		when(mediaService.discover(any(), any(), any(), any(), any(), any(), any(), anyInt(), anyInt()))
+				.thenThrow(new BadRequestException("Invalid type. Must be one of: MOVIE, TV, ANIME, GAME"));
+
+		mockMvc.perform(get("/api/media").param("type", "BOOK"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("Invalid type. Must be one of: MOVIE, TV, ANIME, GAME"))
+				.andExpect(jsonPath("$.status").value(400));
+	}
+
+	@Test
+	void getAllMedia_returns400WhenServiceRejectsSort() throws Exception {
+		when(mediaService.discover(any(), any(), any(), any(), any(), any(), any(), anyInt(), anyInt()))
+				.thenThrow(new BadRequestException("Invalid sort. Must be one of: QUALITY, YEAR, TITLE"));
+
+		mockMvc.perform(get("/api/media").param("sort", "POPULARITY"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("Invalid sort. Must be one of: QUALITY, YEAR, TITLE"));
+	}
+
+	@Test
+	void getAllMedia_returns400WhenSizeAboveMax() throws Exception {
+		when(mediaService.discover(any(), any(), any(), any(), any(), any(), any(), anyInt(), anyInt()))
+				.thenThrow(new BadRequestException("size must be between 1 and 50"));
+
+		mockMvc.perform(get("/api/media").param("size", "51"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("size must be between 1 and 50"))
+				.andExpect(jsonPath("$.status").value(400));
 	}
 
 	/** GET /api/media/{id} returns 200 and the media JSON when the id exists. */
@@ -178,9 +253,23 @@ class MediaControllerTest {
 	@Test
 	void getMediaById_returns400WhenIdNotUuid() throws Exception {
 		mockMvc.perform(get("/api/media/{id}", "not-a-uuid"))
-				.andExpect(status().isBadRequest());
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("Invalid value for parameter 'id'"))
+				.andExpect(jsonPath("$.status").value(400));
 
 		verify(mediaService, never()).getMediaById(any());
+	}
+
+	@Test
+	void createMedia_returns400WhenJsonMalformed() throws Exception {
+		mockMvc.perform(post("/api/media")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("Malformed JSON request"))
+				.andExpect(jsonPath("$.status").value(400));
+
+		verify(mediaService, never()).createMedia(any());
 	}
 
 	/** POST with optional description/releaseYear omitted returns 201. */
@@ -196,7 +285,8 @@ class MediaControllerTest {
 				null,
 				new MediaTypeDTO(mediaTypeId, "Movie"),
 				Instant.parse("2026-09-07T09:31:11.874953Z"),
-				Instant.parse("2026-09-07T09:31:11.874953Z")
+				Instant.parse("2026-09-07T09:31:11.874953Z"),
+				null
 		);
 		when(mediaService.createMedia(any())).thenReturn(response);
 
@@ -399,7 +489,8 @@ class MediaControllerTest {
 				null,
 				new MediaTypeDTO(mediaTypeId, "Movie"),
 				Instant.parse("2026-09-07T09:31:11.874953Z"),
-				Instant.parse("2026-09-07T09:31:11.874953Z")
+				Instant.parse("2026-09-07T09:31:11.874953Z"),
+				null
 		);
 	}
 }

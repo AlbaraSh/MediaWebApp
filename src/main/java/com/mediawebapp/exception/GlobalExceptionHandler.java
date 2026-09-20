@@ -1,14 +1,18 @@
 package com.mediawebapp.exception;
 
+import java.sql.SQLException;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 /**
  * Centralizes HTTP error translation for the REST API.
@@ -127,5 +131,58 @@ public class GlobalExceptionHandler {
 				HttpStatus.BAD_REQUEST.value()
 		);
 		return ResponseEntity.badRequest().body(body);
+	}
+
+	/**
+	 * Maps malformed JSON bodies to HTTP 400 without leaking parser internals.
+	 */
+	@ExceptionHandler(HttpMessageNotReadableException.class)
+	public ResponseEntity<ApiErrorResponse> handleUnreadableBody(
+			HttpMessageNotReadableException ignored) {
+		ApiErrorResponse body = ApiErrorResponse.of(
+				"Malformed JSON request",
+				HttpStatus.BAD_REQUEST.value()
+		);
+		return ResponseEntity.badRequest().body(body);
+	}
+
+	/**
+	 * Maps invalid path/query types (e.g. a non-UUID id) to HTTP 400.
+	 */
+	@ExceptionHandler(MethodArgumentTypeMismatchException.class)
+	public ResponseEntity<ApiErrorResponse> handleTypeMismatch(
+			MethodArgumentTypeMismatchException exception) {
+		ApiErrorResponse body = ApiErrorResponse.of(
+				"Invalid value for parameter '" + exception.getName() + "'",
+				HttpStatus.BAD_REQUEST.value()
+		);
+		return ResponseEntity.badRequest().body(body);
+	}
+
+	/**
+	 * Maps unique-constraint races (e.g. two registers at once) to HTTP 409.
+	 * Other integrity failures stay 400 without exposing SQL.
+	 */
+	@ExceptionHandler(DataIntegrityViolationException.class)
+	public ResponseEntity<ApiErrorResponse> handleDataIntegrity(
+			DataIntegrityViolationException exception) {
+		boolean unique = isUniqueViolation(exception);
+		HttpStatus status = unique ? HttpStatus.CONFLICT : HttpStatus.BAD_REQUEST;
+		ApiErrorResponse body = ApiErrorResponse.of(
+				unique ? "Resource already exists" : "Request could not be completed",
+				status.value()
+		);
+		return ResponseEntity.status(status).body(body);
+	}
+
+	private static boolean isUniqueViolation(Throwable exception) {
+		Throwable current = exception;
+		while (current != null) {
+			if (current instanceof SQLException sql && "23505".equals(sql.getSQLState())) {
+				return true;
+			}
+			current = current.getCause();
+		}
+		return false;
 	}
 }

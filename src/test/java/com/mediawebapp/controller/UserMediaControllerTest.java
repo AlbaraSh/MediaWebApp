@@ -2,7 +2,9 @@ package com.mediawebapp.controller;
 
 import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -10,12 +12,14 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.mediawebapp.dto.LibraryPageResponse;
 import com.mediawebapp.dto.MediaTypeDTO;
+import com.mediawebapp.dto.PageResponse;
 import com.mediawebapp.dto.UserMediaResponseDTO;
+import com.mediawebapp.dto.UserMediaStatusCounts;
 import com.mediawebapp.dto.UserMediaUpsertResult;
 import com.mediawebapp.entity.UserMediaStatus;
 import com.mediawebapp.exception.GlobalExceptionHandler;
@@ -121,7 +125,8 @@ class UserMediaControllerTest {
 				mediaId,
 				"The Matrix",
 				(short) 1999,
-				new MediaTypeDTO(mediaTypeId, "Movie")
+				new MediaTypeDTO(mediaTypeId, "Movie"),
+				List.of()
 		);
 		when(userMediaService.upsert(eq(userId), any()))
 				.thenReturn(new UserMediaUpsertResult(response, true));
@@ -142,53 +147,75 @@ class UserMediaControllerTest {
 				.andExpect(jsonPath("$.review").value(nullValue()));
 	}
 
-	/** GET /api/user-media returns 200 and the current user's full list. */
+	/** GET /api/user-media returns 200 and a page of the current user's list. */
 	@Test
-	void getUserMedia_returns200AndList() throws Exception {
-		when(userMediaService.getAllForUser(userId)).thenReturn(List.of(sampleResponse()));
+	void getUserMedia_returns200AndPageEnvelope() throws Exception {
+		when(userMediaService.listForUser(
+				eq(userId), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), eq(0), eq(20)))
+				.thenReturn(samplePage(List.of(sampleResponse())));
 
 		mockMvc.perform(get("/api/user-media"))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$").isArray())
-				.andExpect(jsonPath("$[0].mediaId").value(mediaId.toString()))
-				.andExpect(jsonPath("$[0].status").value("WATCHING"));
+				.andExpect(jsonPath("$.content").isArray())
+				.andExpect(jsonPath("$.content[0].mediaId").value(mediaId.toString()))
+				.andExpect(jsonPath("$.content[0].status").value("WATCHING"))
+				.andExpect(jsonPath("$.content[0].genres").isArray())
+				.andExpect(jsonPath("$.page").value(0))
+				.andExpect(jsonPath("$.size").value(20))
+				.andExpect(jsonPath("$.totalElements").value(1))
+				.andExpect(jsonPath("$.counts.completed").value(0));
 
-		verify(userMediaService).getAllForUser(userId);
-		verify(userMediaService, never()).getAllForUserByStatus(any(), any());
+		verify(userMediaService).listForUser(
+				eq(userId), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), eq(0), eq(20));
 	}
 
-	/** GET /api/user-media returns 200 with an empty array when the user has no entries. */
+	/** GET /api/user-media returns 200 with an empty page when the user has no matching entries. */
 	@Test
-	void getUserMedia_returns200AndEmptyList() throws Exception {
-		when(userMediaService.getAllForUser(userId)).thenReturn(List.of());
+	void getUserMedia_returns200AndEmptyPage() throws Exception {
+		when(userMediaService.listForUser(
+				eq(userId), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), eq(0), eq(20)))
+				.thenReturn(samplePage(List.of()));
 
 		mockMvc.perform(get("/api/user-media"))
 				.andExpect(status().isOk())
-				.andExpect(content().json("[]"));
+				.andExpect(jsonPath("$.content").isArray())
+				.andExpect(jsonPath("$.content").isEmpty())
+				.andExpect(jsonPath("$.totalElements").value(0))
+				.andExpect(jsonPath("$.counts.planned").value(0));
 	}
 
-	/** GET /api/user-media?status=COMPLETED filters via getAllForUserByStatus. */
+	/** GET /api/user-media?status=COMPLETED forwards the status into listForUser. */
 	@Test
-	void getUserMedia_returnsFilteredByStatus() throws Exception {
-		when(userMediaService.getAllForUserByStatus(userId, UserMediaStatus.COMPLETED))
-				.thenReturn(List.of(sampleResponse()));
+	void getUserMedia_forwardsStatusFilter() throws Exception {
+		when(userMediaService.listForUser(
+				eq(userId), eq(UserMediaStatus.COMPLETED), isNull(), isNull(), isNull(), isNull(), isNull(), eq(0), eq(20)))
+				.thenReturn(samplePage(List.of(sampleResponse())));
 
 		mockMvc.perform(get("/api/user-media").param("status", "COMPLETED"))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$[0].mediaId").value(mediaId.toString()));
+				.andExpect(jsonPath("$.content[0].mediaId").value(mediaId.toString()));
 
-		verify(userMediaService).getAllForUserByStatus(userId, UserMediaStatus.COMPLETED);
-		verify(userMediaService, never()).getAllForUser(any());
+		verify(userMediaService).listForUser(
+				eq(userId),
+				eq(UserMediaStatus.COMPLETED),
+				isNull(),
+				isNull(),
+				isNull(),
+				isNull(),
+				isNull(),
+				eq(0),
+				eq(20));
 	}
 
 	/** GET with an unknown status query value is rejected (enum binding failure). */
 	@Test
 	void getUserMedia_returns400WhenStatusQueryInvalid() throws Exception {
 		mockMvc.perform(get("/api/user-media").param("status", "BINGEING"))
-				.andExpect(status().isBadRequest());
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("Invalid value for parameter 'status'"))
+				.andExpect(jsonPath("$.status").value(400));
 
-		verify(userMediaService, never()).getAllForUser(any());
-		verify(userMediaService, never()).getAllForUserByStatus(any(), any());
+		verify(userMediaService, never()).listForUser(any(), any(), any(), any(), any(), any(), any(), anyInt(), anyInt());
 	}
 
 	/** DELETE /api/user-media/{mediaId} returns 204 when the entry is removed. */
@@ -297,6 +324,26 @@ class UserMediaControllerTest {
 		verify(userMediaService, never()).upsert(any(), any());
 	}
 
+	@Test
+	void upsert_returns400WhenReviewTooLong() throws Exception {
+		String body = """
+				{
+				  "mediaId": "%s",
+				  "status": "COMPLETED",
+				  "review": "%s"
+				}
+				""".formatted(mediaId, "a".repeat(2001));
+
+		mockMvc.perform(post("/api/user-media")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("Validation failed"))
+				.andExpect(jsonPath("$.details.review").exists());
+
+		verify(userMediaService, never()).upsert(any(), any());
+	}
+
 	/** POST without mediaId returns 400 validation error on mediaId. */
 	@Test
 	void upsert_returns400WhenMediaIdMissing() throws Exception {
@@ -347,7 +394,14 @@ class UserMediaControllerTest {
 				mediaId,
 				"The Matrix",
 				(short) 1999,
-				new MediaTypeDTO(mediaTypeId, "Movie")
+				new MediaTypeDTO(mediaTypeId, "Movie"),
+				List.of()
 		);
+	}
+
+	private LibraryPageResponse samplePage(List<UserMediaResponseDTO> content) {
+		return LibraryPageResponse.of(
+				PageResponse.of(content, 0, 20, content.size()),
+				UserMediaStatusCounts.empty());
 	}
 }

@@ -1,17 +1,27 @@
 package com.mediawebapp.service;
 
+import com.mediawebapp.dto.CatalogType;
+import com.mediawebapp.dto.LibraryPageResponse;
+import com.mediawebapp.dto.PageResponse;
+import com.mediawebapp.dto.Pagination;
 import com.mediawebapp.dto.UserMediaRequestDTO;
 import com.mediawebapp.dto.UserMediaResponseDTO;
+import com.mediawebapp.dto.UserMediaStatusCounts;
 import com.mediawebapp.dto.UserMediaUpsertResult;
 import com.mediawebapp.entity.Media;
 import com.mediawebapp.entity.UserMedia;
 import com.mediawebapp.entity.UserMediaStatus;
+import com.mediawebapp.exception.BadRequestException;
 import com.mediawebapp.exception.ResourceNotFoundException;
 import com.mediawebapp.mapper.UserMediaMapper;
 import com.mediawebapp.repository.MediaRepository;
+import com.mediawebapp.repository.UserMediaQueryRepository;
 import com.mediawebapp.repository.UserMediaRepository;
 import jakarta.persistence.EntityManager;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +41,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserMediaService {
 
 	private final UserMediaRepository userMediaRepository;
+	private final UserMediaQueryRepository userMediaQueryRepository;
 	private final MediaRepository mediaRepository;
 	private final UserMediaMapper userMediaMapper;
 	private final EntityManager entityManager;
@@ -71,26 +82,47 @@ public class UserMediaService {
 	}
 
 	/**
-	 * @param userId list owner
-	 * @return all entries for the user, with media summaries
+	 * Lists the current user's shelf as a page. Default status is COMPLETED.
+	 * Sort is fixed: user rating DESC NULLS LAST, updated_at DESC, media id ASC.
 	 */
 	@Transactional(readOnly = true)
-	public List<UserMediaResponseDTO> getAllForUser(UUID userId) {
-		return userMediaRepository.findAllByUserIdWithMedia(userId).stream()
-				.map(userMediaMapper::toResponseDto)
-				.toList();
-	}
+	public LibraryPageResponse listForUser(
+			UUID userId,
+			UserMediaStatus status,
+			String type,
+			String genre,
+			Integer minRating,
+			Integer maxRating,
+			String q,
+			int page,
+			int size) {
+		Pagination.validate(page, size);
+		validateRatingBounds(minRating, maxRating);
+		UserMediaStatus effectiveStatus = status == null ? UserMediaStatus.COMPLETED : status;
+		String typeName = optionalTypeName(type);
+		String genreName = GenreService.canonicalize(genre);
+		String query = trimToNull(q);
 
-	/**
-	 * @param userId list owner
-	 * @param status filter matching the DB enum
-	 * @return entries for the user with the given status
-	 */
-	@Transactional(readOnly = true)
-	public List<UserMediaResponseDTO> getAllForUserByStatus(UUID userId, UserMediaStatus status) {
-		return userMediaRepository.findAllByUserIdAndStatusWithMedia(userId, status).stream()
+		long totalElements = userMediaQueryRepository.countLibrary(
+				userId, effectiveStatus, typeName, genreName, minRating, maxRating, query);
+		List<UUID> ids = totalElements == 0
+				? List.of()
+				: userMediaQueryRepository.findLibraryIds(
+						userId,
+						effectiveStatus,
+						typeName,
+						genreName,
+						minRating,
+						maxRating,
+						query,
+						size,
+						Pagination.offset(page, size));
+		List<UserMediaResponseDTO> content = loadEntriesInOrder(ids).stream()
 				.map(userMediaMapper::toResponseDto)
 				.toList();
+		UserMediaStatusCounts counts = userMediaQueryRepository.countByStatus(
+				userId, typeName, genreName, query);
+		return LibraryPageResponse.of(PageResponse.of(content, page, size, totalElements), counts);
 	}
 
 	/**
@@ -135,5 +167,53 @@ public class UserMediaService {
 		UserMedia saved = userMediaRepository.saveAndFlush(userMedia);
 		entityManager.refresh(saved);
 		return userMediaMapper.toResponseDto(saved);
+	}
+
+	private List<UserMedia> loadEntriesInOrder(List<UUID> ids) {
+		if (ids.isEmpty()) {
+			return List.of();
+		}
+		Map<UUID, UserMedia> byId = new HashMap<>();
+		for (UserMedia entry : userMediaRepository.findAllByIdInWithMedia(ids)) {
+			byId.put(entry.getId(), entry);
+		}
+		List<UserMedia> ordered = new ArrayList<>(ids.size());
+		for (UUID id : ids) {
+			UserMedia entry = byId.get(id);
+			if (entry != null) {
+				ordered.add(entry);
+			}
+		}
+		return ordered;
+	}
+
+	private static void validateRatingBounds(Integer minRating, Integer maxRating) {
+		if (minRating != null && (minRating < 1 || minRating > 10)) {
+			throw new BadRequestException("minRating must be between 1 and 10");
+		}
+		if (maxRating != null && (maxRating < 1 || maxRating > 10)) {
+			throw new BadRequestException("maxRating must be between 1 and 10");
+		}
+		if (minRating != null && maxRating != null && minRating > maxRating) {
+			throw new BadRequestException("minRating must be less than or equal to maxRating");
+		}
+	}
+
+	private static String optionalTypeName(String type) {
+		if (type == null || type.isBlank()) {
+			return null;
+		}
+		return CatalogType.fromParam(type)
+				.orElseThrow(() -> new BadRequestException(
+						"Invalid type. Must be one of: MOVIE, TV, ANIME, GAME"))
+				.mediaTypeName();
+	}
+
+	private static String trimToNull(String value) {
+		if (value == null) {
+			return null;
+		}
+		String trimmed = value.trim();
+		return trimmed.isEmpty() ? null : trimmed;
 	}
 }

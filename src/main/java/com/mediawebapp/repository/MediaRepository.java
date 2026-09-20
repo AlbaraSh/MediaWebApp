@@ -16,13 +16,6 @@ public interface MediaRepository extends JpaRepository<Media, UUID> {
 			SELECT DISTINCT m FROM Media m
 			JOIN FETCH m.mediaType
 			LEFT JOIN FETCH m.genres
-			""")
-	List<Media> findAllWithMediaType();
-
-	@Query("""
-			SELECT DISTINCT m FROM Media m
-			JOIN FETCH m.mediaType
-			LEFT JOIN FETCH m.genres
 			WHERE m.id = :id
 			""")
 	Optional<Media> findByIdWithMediaType(@Param("id") UUID id);
@@ -36,6 +29,14 @@ public interface MediaRepository extends JpaRepository<Media, UUID> {
 
 	@Query("SELECT AVG(m.externalRating) FROM Media m WHERE m.externalRating IS NOT NULL")
 	Double findAverageExternalRating();
+
+	@Query("""
+			SELECT DISTINCT m FROM Media m
+			JOIN FETCH m.mediaType
+			LEFT JOIN FETCH m.genres
+			WHERE m.id IN :ids
+			""")
+	List<Media> findAllWithMediaTypeAndGenresByIdIn(@Param("ids") Collection<UUID> ids);
 
 	@Query("""
 			SELECT DISTINCT m FROM Media m

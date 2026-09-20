@@ -3,6 +3,9 @@ package com.mediawebapp.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyDouble;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
@@ -12,13 +15,17 @@ import static org.mockito.Mockito.when;
 
 import com.mediawebapp.dto.MediaRequestDTO;
 import com.mediawebapp.dto.MediaResponseDTO;
+import com.mediawebapp.dto.PageResponse;
 import com.mediawebapp.entity.Genre;
 import com.mediawebapp.entity.Media;
 import com.mediawebapp.entity.MediaType;
+import com.mediawebapp.exception.BadRequestException;
 import com.mediawebapp.exception.ResourceNotFoundException;
 import com.mediawebapp.mapper.MediaMapper;
+import com.mediawebapp.repository.MediaQueryRepository;
 import com.mediawebapp.repository.MediaRepository;
 import com.mediawebapp.repository.MediaTypeRepository;
+import com.mediawebapp.repository.UserMediaRepository;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.List;
@@ -39,6 +46,9 @@ class MediaServiceTest {
 	private MediaRepository mediaRepository;
 
 	@Mock
+	private MediaQueryRepository mediaQueryRepository;
+
+	@Mock
 	private MediaTypeRepository mediaTypeRepository;
 
 	@Mock
@@ -49,6 +59,9 @@ class MediaServiceTest {
 
 	@Mock
 	private MediaEmbeddingService mediaEmbeddingService;
+
+	@Mock
+	private UserMediaRepository userMediaRepository;
 
 	private MediaMapper mediaMapper;
 	private MediaService mediaService;
@@ -62,11 +75,13 @@ class MediaServiceTest {
 		mediaMapper = new MediaMapper();
 		mediaService = new MediaService(
 				mediaRepository,
+				mediaQueryRepository,
 				mediaTypeRepository,
 				mediaMapper,
 				entityManager,
 				genreService,
-				mediaEmbeddingService
+				mediaEmbeddingService,
+				userMediaRepository
 		);
 
 		mediaTypeId = UUID.randomUUID();
@@ -223,32 +238,78 @@ class MediaServiceTest {
 		verify(mediaEmbeddingService, never()).generateAndStore(any(), any(), any(), any());
 	}
 
-	/** getAllMedia maps every persisted entity (with media type) into response DTOs. */
+	/** discover returns an empty page when the catalog has no matching rows. */
 	@Test
-	void shouldReturnAllMedia() {
-		Media media = persistedMedia("Inception", (short) 2010);
+	void shouldReturnEmptyDiscoverPageWhenNoMediaExists() {
+		when(mediaRepository.findAverageExternalRating()).thenReturn(null);
+		when(mediaQueryRepository.countDiscover(null, null, null, null)).thenReturn(0L);
 
-		when(mediaRepository.findAllWithMediaType()).thenReturn(List.of(media));
+		PageResponse<MediaResponseDTO> response = mediaService.discover(
+				Optional.empty(), null, null, null, null, null, null, 0, 20);
 
-		List<MediaResponseDTO> responses = mediaService.getAllMedia();
-
-		assertThat(responses).hasSize(1);
-		assertThat(responses.get(0).id()).isEqualTo(mediaId);
-		assertThat(responses.get(0).title()).isEqualTo("Inception");
-		assertThat(responses.get(0).mediaType().name()).isEqualTo("Movie");
-
-		verify(mediaRepository).findAllWithMediaType();
+		assertThat(response.content()).isEmpty();
+		assertThat(response.page()).isZero();
+		assertThat(response.size()).isEqualTo(20);
+		assertThat(response.totalElements()).isZero();
+		assertThat(response.totalPages()).isZero();
+		verify(mediaQueryRepository, never()).findDiscoverIds(
+				any(), any(), any(), any(), any(), any(), anyDouble(), anyInt(), anyInt(), anyLong());
+		verify(userMediaRepository, never()).findMediaIdsByUserIdAndMediaIdIn(any(), any());
 	}
 
-	/** getAllMedia returns an empty list when the catalog has no rows. */
 	@Test
-	void shouldReturnEmptyListWhenNoMediaExists() {
-		when(mediaRepository.findAllWithMediaType()).thenReturn(List.of());
+	void shouldDiscoverPageWithInLibraryFlagsForAuthenticatedUser() {
+		Media media = persistedMedia("Inception", (short) 2010);
+		UUID userId = UUID.fromString("00000000-0000-0000-0000-000000000001");
+		when(mediaRepository.findAverageExternalRating()).thenReturn(7.0);
+		when(mediaQueryRepository.countDiscover(null, null, null, null)).thenReturn(1L);
+		when(mediaQueryRepository.findDiscoverIds(
+				any(), any(), any(), any(), any(), any(), anyDouble(), anyInt(), anyInt(), anyLong()))
+				.thenReturn(List.of(mediaId));
+		when(mediaRepository.findAllWithMediaTypeAndGenresByIdIn(List.of(mediaId))).thenReturn(List.of(media));
+		when(userMediaRepository.findMediaIdsByUserIdAndMediaIdIn(userId, List.of(mediaId)))
+				.thenReturn(List.of(mediaId));
 
-		List<MediaResponseDTO> responses = mediaService.getAllMedia();
+		PageResponse<MediaResponseDTO> response = mediaService.discover(
+				Optional.of(userId), null, null, null, null, null, null, 0, 20);
 
-		assertThat(responses).isEmpty();
-		verify(mediaRepository).findAllWithMediaType();
+		assertThat(response.content()).hasSize(1);
+		assertThat(response.content().get(0).title()).isEqualTo("Inception");
+		assertThat(response.content().get(0).inLibrary()).isTrue();
+		assertThat(response.totalElements()).isEqualTo(1);
+	}
+
+	@Test
+	void shouldLeaveInLibraryNullWhenAnonymous() {
+		Media media = persistedMedia("Inception", (short) 2010);
+		when(mediaRepository.findAverageExternalRating()).thenReturn(7.0);
+		when(mediaQueryRepository.countDiscover(null, null, null, null)).thenReturn(1L);
+		when(mediaQueryRepository.findDiscoverIds(
+				any(), any(), any(), any(), any(), any(), anyDouble(), anyInt(), anyInt(), anyLong()))
+				.thenReturn(List.of(mediaId));
+		when(mediaRepository.findAllWithMediaTypeAndGenresByIdIn(List.of(mediaId))).thenReturn(List.of(media));
+
+		PageResponse<MediaResponseDTO> response = mediaService.discover(
+				Optional.empty(), null, null, null, null, null, null, 0, 20);
+
+		assertThat(response.content().get(0).inLibrary()).isNull();
+		verify(userMediaRepository, never()).findMediaIdsByUserIdAndMediaIdIn(any(), any());
+	}
+
+	@Test
+	void shouldRejectInvalidDiscoverTypeAndSort() {
+		assertThatThrownBy(() -> mediaService.discover(
+				Optional.empty(), "BOOK", null, null, null, null, null, 0, 20))
+				.isInstanceOf(BadRequestException.class)
+				.hasMessageContaining("Invalid type");
+		assertThatThrownBy(() -> mediaService.discover(
+				Optional.empty(), null, null, null, null, "POPULARITY", null, 0, 20))
+				.isInstanceOf(BadRequestException.class)
+				.hasMessageContaining("Invalid sort");
+		assertThatThrownBy(() -> mediaService.discover(
+				Optional.empty(), null, null, null, null, null, null, 0, 51))
+				.isInstanceOf(BadRequestException.class)
+				.hasMessageContaining("size");
 	}
 
 	/** getMediaById returns the matching media DTO when the id exists. */

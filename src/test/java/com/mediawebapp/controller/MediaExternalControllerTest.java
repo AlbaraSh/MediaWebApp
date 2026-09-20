@@ -18,6 +18,7 @@ import com.mediawebapp.exception.BadRequestException;
 import com.mediawebapp.exception.ExternalProviderException;
 import com.mediawebapp.exception.GlobalExceptionHandler;
 import com.mediawebapp.exception.ResourceNotFoundException;
+import com.mediawebapp.security.CurrentUserProvider;
 import com.mediawebapp.security.TestSecurityConfig;
 import com.mediawebapp.service.ExternalMediaService;
 import com.mediawebapp.service.MediaService;
@@ -44,6 +45,9 @@ class MediaExternalControllerTest {
 
 	@MockitoBean
 	private ExternalMediaService externalMediaService;
+
+	@MockitoBean
+	private CurrentUserProvider currentUserProvider;
 
 	private final UUID mediaId = UUID.fromString("378374f4-700b-422a-80f8-a3a802925fb7");
 	private final UUID mediaTypeId = UUID.fromString("5f73d14b-4df1-499f-8fa9-ba5a2e0c4421");
@@ -196,7 +200,8 @@ class MediaExternalControllerTest {
 				null,
 				new MediaTypeDTO(mediaTypeId, "Movie"),
 				Instant.parse("2026-01-01T00:00:00Z"),
-				Instant.parse("2026-01-01T00:00:00Z")
+				Instant.parse("2026-01-01T00:00:00Z"),
+				null
 		);
 	}
 }

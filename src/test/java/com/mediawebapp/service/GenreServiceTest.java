@@ -106,6 +106,20 @@ class GenreServiceTest {
 		verify(genreRepository, never()).findByName(any());
 	}
 
+	@Test
+	void listDistinctCatalogNames_returnsRepositoryOrder() {
+		when(genreRepository.findDistinctNamesUsedByCatalogMedia()).thenReturn(List.of("Action", "Drama"));
+
+		assertThat(genreService.listDistinctCatalogNames()).containsExactly("Action", "Drama");
+	}
+
+	@Test
+	void listDistinctCatalogNames_emptyCatalog() {
+		when(genreRepository.findDistinctNamesUsedByCatalogMedia()).thenReturn(List.of());
+
+		assertThat(genreService.listDistinctCatalogNames()).isEmpty();
+	}
+
 	private static Genre persisted(String name) {
 		Genre genre = new Genre();
 		genre.setId(UUID.randomUUID());

@@ -28,6 +28,10 @@ public class MediaMapper {
 	}
 
 	public MediaResponseDTO toResponseDto(Media media) {
+		return toResponseDto(media, null);
+	}
+
+	public MediaResponseDTO toResponseDto(Media media, Boolean inLibrary) {
 		return new MediaResponseDTO(
 				media.getId(),
 				media.getTitle(),
@@ -38,7 +42,8 @@ public class MediaMapper {
 				media.getExternalRatingCount(),
 				toMediaTypeDto(media.getMediaType()),
 				media.getCreatedAt(),
-				media.getUpdatedAt()
+				media.getUpdatedAt(),
+				inLibrary
 		);
 	}
 

@@ -1,5 +1,7 @@
 package com.mediawebapp.security;
 
+import com.mediawebapp.entity.User;
+import com.mediawebapp.repository.UserRepository;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -36,6 +38,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
 	private final JwtService jwtService;
 	private final AuthenticationEntryPoint authenticationEntryPoint;
+	private final UserRepository userRepository;
 
 	@Override
 	protected void doFilterInternal(
@@ -51,17 +54,30 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
 		String token = header.substring(BEARER_PREFIX.length()).trim();
 		try {
-			AuthenticatedUser user = jwtService.parseToken(token);
+			AuthenticatedUser parsed = jwtService.parseToken(token);
+			User user = userRepository.findById(parsed.userId()).orElse(null);
+			if (user == null || user.getTokenVersion() != parsed.tokenVersion()) {
+				reject(request, response, new BadCredentialsException("Invalid or expired JWT"));
+				return;
+			}
+			AuthenticatedUser principal = new AuthenticatedUser(
+					user.getId(), user.getEmail(), user.getTokenVersion());
 			// Empty authorities: this iteration has no roles; authenticated() is enough.
 			UsernamePasswordAuthenticationToken authentication =
-					new UsernamePasswordAuthenticationToken(user, null, List.of());
+					new UsernamePasswordAuthenticationToken(principal, null, List.of());
 			authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 			SecurityContextHolder.getContext().setAuthentication(authentication);
 			filterChain.doFilter(request, response);
 		} catch (JwtException | IllegalArgumentException ex) {
-			SecurityContextHolder.clearContext();
-			AuthenticationException authEx = new BadCredentialsException("Invalid or expired JWT", ex);
-			authenticationEntryPoint.commence(request, response, authEx);
+			reject(request, response, new BadCredentialsException("Invalid or expired JWT", ex));
 		}
+	}
+
+	private void reject(
+			HttpServletRequest request,
+			HttpServletResponse response,
+			AuthenticationException authEx) throws IOException, ServletException {
+		SecurityContextHolder.clearContext();
+		authenticationEntryPoint.commence(request, response, authEx);
 	}
 }

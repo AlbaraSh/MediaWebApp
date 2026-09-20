@@ -35,3 +35,6 @@ build/
 # Cursor AI configuration
 .cursorrules
 .cursorignore
+
+# Local secrets — copy from .env.example
+.env

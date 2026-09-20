@@ -11,6 +11,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
@@ -43,6 +44,11 @@ public class GenreService {
 			resolved.add(resolveOne(canonical));
 		}
 		return resolved;
+	}
+
+	@Transactional(readOnly = true)
+	public List<String> listDistinctCatalogNames() {
+		return genreRepository.findDistinctNamesUsedByCatalogMedia();
 	}
 
 	/**

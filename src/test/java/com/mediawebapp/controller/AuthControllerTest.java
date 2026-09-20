@@ -14,8 +14,10 @@ import com.mediawebapp.dto.AuthResponseDTO;
 import com.mediawebapp.exception.DuplicateResourceException;
 import com.mediawebapp.exception.GlobalExceptionHandler;
 import com.mediawebapp.exception.InvalidCredentialsException;
+import com.mediawebapp.security.CurrentUserProvider;
 import com.mediawebapp.security.TestSecurityConfig;
 import com.mediawebapp.service.AuthService;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -33,6 +35,9 @@ class AuthControllerTest {
 
 	@MockitoBean
 	private AuthService authService;
+
+	@MockitoBean
+	private CurrentUserProvider currentUserProvider;
 
 	@Test
 	void register_returns201WithEmptyBody() throws Exception {
@@ -189,5 +194,17 @@ class AuthControllerTest {
 				.andExpect(jsonPath("$.details.email").exists());
 
 		verify(authService, never()).login(any());
+	}
+
+	@Test
+	void logout_returns204() throws Exception {
+		UUID userId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+		when(currentUserProvider.getCurrentUserId()).thenReturn(userId);
+
+		mockMvc.perform(post("/api/auth/logout"))
+				.andExpect(status().isNoContent())
+				.andExpect(content().string(""));
+
+		verify(authService).logout(userId);
 	}
 }
