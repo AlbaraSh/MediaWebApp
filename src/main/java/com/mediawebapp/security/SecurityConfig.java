@@ -19,8 +19,9 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 /**
  * Stateless JWT security: no HTTP sessions, no CSRF cookie token, BCrypt passwords.
  * <p>
- * Public: register/login and catalog reads. Everything else, including media
- * writes and the personal list, requires a valid Bearer token.
+ * Public: register/login, catalog reads, and similar-media discovery.
+ * Everything else, including media writes, the personal list, and user
+ * recommendations, requires a valid Bearer token.
  */
 @Configuration
 @EnableWebSecurity
@@ -54,6 +55,8 @@ public class SecurityConfig {
 						.requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login")
 						.permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/media/**")
+						.permitAll()
+						.requestMatchers(HttpMethod.GET, "/api/recommendations/similar/**")
 						.permitAll()
 						.requestMatchers("/api/user-media/**")
 						.authenticated()
