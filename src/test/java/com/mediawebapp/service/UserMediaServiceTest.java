@@ -3,21 +3,26 @@ package com.mediawebapp.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.mediawebapp.dto.LibraryPageResponse;
 import com.mediawebapp.dto.UserMediaRequestDTO;
 import com.mediawebapp.dto.UserMediaResponseDTO;
+import com.mediawebapp.dto.UserMediaStatusCounts;
 import com.mediawebapp.dto.UserMediaUpsertResult;
 import com.mediawebapp.entity.Media;
 import com.mediawebapp.entity.MediaType;
 import com.mediawebapp.entity.UserMedia;
 import com.mediawebapp.entity.UserMediaStatus;
+import com.mediawebapp.exception.BadRequestException;
 import com.mediawebapp.exception.ResourceNotFoundException;
 import com.mediawebapp.mapper.UserMediaMapper;
 import com.mediawebapp.repository.MediaRepository;
+import com.mediawebapp.repository.UserMediaQueryRepository;
 import com.mediawebapp.repository.UserMediaRepository;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
@@ -39,6 +44,9 @@ class UserMediaServiceTest {
 	private UserMediaRepository userMediaRepository;
 
 	@Mock
+	private UserMediaQueryRepository userMediaQueryRepository;
+
+	@Mock
 	private MediaRepository mediaRepository;
 
 	@Mock
@@ -58,6 +66,7 @@ class UserMediaServiceTest {
 		userMediaMapper = new UserMediaMapper();
 		userMediaService = new UserMediaService(
 				userMediaRepository,
+				userMediaQueryRepository,
 				mediaRepository,
 				userMediaMapper,
 				entityManager
@@ -266,55 +275,76 @@ class UserMediaServiceTest {
 		verify(userMediaRepository, never()).saveAndFlush(any());
 	}
 
-	/** getAllForUser maps every entry for that user into response DTOs. */
+	/** listForUser defaults to COMPLETED and returns a page envelope with counts. */
 	@Test
-	void shouldReturnAllForUser() {
-		when(userMediaRepository.findAllByUserIdWithMedia(userId))
-				.thenReturn(List.of(existingEntry(UserMediaStatus.WATCHING, 7, "Nice")));
+	void shouldReturnLibraryPageForUser() {
+		UserMedia entry = existingEntry(UserMediaStatus.COMPLETED, 7, "Nice");
+		when(userMediaQueryRepository.countLibrary(
+				userId, UserMediaStatus.COMPLETED, null, null, null, null, null)).thenReturn(1L);
+		when(userMediaQueryRepository.findLibraryIds(
+				userId, UserMediaStatus.COMPLETED, null, null, null, null, null, 20, 0))
+				.thenReturn(List.of(entry.getId()));
+		when(userMediaRepository.findAllByIdInWithMedia(List.of(entry.getId()))).thenReturn(List.of(entry));
+		when(userMediaQueryRepository.countByStatus(userId, null, null, null))
+				.thenReturn(new UserMediaStatusCounts(0, 0, 1, 0));
 
-		List<UserMediaResponseDTO> results = userMediaService.getAllForUser(userId);
+		LibraryPageResponse results = userMediaService.listForUser(
+				userId, null, null, null, null, null, null, 0, 20);
 
-		assertThat(results).hasSize(1);
-		assertThat(results.get(0).mediaId()).isEqualTo(mediaId);
-		assertThat(results.get(0).status()).isEqualTo(UserMediaStatus.WATCHING);
-		verify(userMediaRepository).findAllByUserIdWithMedia(userId);
+		assertThat(results.content()).hasSize(1);
+		assertThat(results.content().get(0).mediaId()).isEqualTo(mediaId);
+		assertThat(results.content().get(0).status()).isEqualTo(UserMediaStatus.COMPLETED);
+		assertThat(results.counts().completed()).isEqualTo(1);
+		assertThat(results.totalElements()).isEqualTo(1);
+		verify(userMediaQueryRepository).countLibrary(
+				userId, UserMediaStatus.COMPLETED, null, null, null, null, null);
 	}
 
-	/** getAllForUser returns an empty list when the user has no entries. */
+	/** listForUser returns an empty page when the user has no matching entries. */
 	@Test
-	void shouldReturnEmptyListWhenUserHasNoEntries() {
-		when(userMediaRepository.findAllByUserIdWithMedia(userId)).thenReturn(List.of());
+	void shouldReturnEmptyLibraryPageWhenUserHasNoEntries() {
+		when(userMediaQueryRepository.countLibrary(
+				userId, UserMediaStatus.COMPLETED, null, null, null, null, null)).thenReturn(0L);
+		when(userMediaQueryRepository.countByStatus(userId, null, null, null))
+				.thenReturn(UserMediaStatusCounts.empty());
 
-		List<UserMediaResponseDTO> results = userMediaService.getAllForUser(userId);
+		LibraryPageResponse results = userMediaService.listForUser(
+				userId, null, null, null, null, null, null, 0, 20);
 
-		assertThat(results).isEmpty();
+		assertThat(results.content()).isEmpty();
+		assertThat(results.totalElements()).isZero();
+		verify(userMediaQueryRepository, never()).findLibraryIds(
+				any(), any(), any(), any(), any(), any(), any(), anyInt(), anyInt());
 	}
 
-	/** getAllForUserByStatus returns only entries matching the requested status. */
+	/** listForUser forwards an explicit status filter. */
 	@Test
-	void shouldReturnFilteredByStatus() {
-		when(userMediaRepository.findAllByUserIdAndStatusWithMedia(userId, UserMediaStatus.COMPLETED))
-				.thenReturn(List.of(existingEntry(UserMediaStatus.COMPLETED, 10, null)));
+	void shouldReturnFilteredLibraryByStatus() {
+		UserMedia entry = existingEntry(UserMediaStatus.WATCHING, 10, null);
+		when(userMediaQueryRepository.countLibrary(
+				userId, UserMediaStatus.WATCHING, null, null, null, null, null)).thenReturn(1L);
+		when(userMediaQueryRepository.findLibraryIds(
+				userId, UserMediaStatus.WATCHING, null, null, null, null, null, 20, 0))
+				.thenReturn(List.of(entry.getId()));
+		when(userMediaRepository.findAllByIdInWithMedia(List.of(entry.getId()))).thenReturn(List.of(entry));
+		when(userMediaQueryRepository.countByStatus(userId, null, null, null))
+				.thenReturn(new UserMediaStatusCounts(0, 1, 0, 0));
 
-		List<UserMediaResponseDTO> results =
-				userMediaService.getAllForUserByStatus(userId, UserMediaStatus.COMPLETED);
+		LibraryPageResponse results = userMediaService.listForUser(
+				userId, UserMediaStatus.WATCHING, null, null, null, null, null, 0, 20);
 
-		assertThat(results).hasSize(1);
-		assertThat(results.get(0).status()).isEqualTo(UserMediaStatus.COMPLETED);
-		verify(userMediaRepository)
-				.findAllByUserIdAndStatusWithMedia(userId, UserMediaStatus.COMPLETED);
+		assertThat(results.content()).hasSize(1);
+		assertThat(results.content().get(0).status()).isEqualTo(UserMediaStatus.WATCHING);
+		verify(userMediaQueryRepository)
+				.countLibrary(userId, UserMediaStatus.WATCHING, null, null, null, null, null);
 	}
 
-	/** Status filter returns empty when the user has no entries with that status. */
 	@Test
-	void shouldReturnEmptyListWhenNoEntriesMatchStatus() {
-		when(userMediaRepository.findAllByUserIdAndStatusWithMedia(userId, UserMediaStatus.DROPPED))
-				.thenReturn(List.of());
-
-		List<UserMediaResponseDTO> results =
-				userMediaService.getAllForUserByStatus(userId, UserMediaStatus.DROPPED);
-
-		assertThat(results).isEmpty();
+	void shouldRejectMinRatingGreaterThanMaxRating() {
+		assertThatThrownBy(() -> userMediaService.listForUser(
+				userId, null, null, null, 8, 3, null, 0, 20))
+				.isInstanceOf(BadRequestException.class)
+				.hasMessageContaining("minRating");
 	}
 
 	/** deleteForUser removes the entry when it exists for the current user. */

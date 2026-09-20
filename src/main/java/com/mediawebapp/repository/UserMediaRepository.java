@@ -1,7 +1,7 @@
 package com.mediawebapp.repository;
 
 import com.mediawebapp.entity.UserMedia;
-import com.mediawebapp.entity.UserMediaStatus;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -12,15 +12,16 @@ import org.springframework.data.repository.query.Param;
 /**
  * Persistence access for {@link UserMedia} entries.
  * <p>
- * Join-fetch queries load nested {@code media} and {@code mediaType} so the
- * service can build response DTOs without lazy-loading after the transaction.
+ * Join-fetch queries load nested {@code media}, {@code mediaType}, and genres
+ * so the service can build response DTOs without lazy-loading after the transaction.
  */
 public interface UserMediaRepository extends JpaRepository<UserMedia, UUID> {
 
 	@Query("""
-			SELECT um FROM UserMedia um
+			SELECT DISTINCT um FROM UserMedia um
 			JOIN FETCH um.media m
 			JOIN FETCH m.mediaType
+			LEFT JOIN FETCH m.genres
 			WHERE um.userId = :userId AND m.id = :mediaId
 			""")
 	Optional<UserMedia> findByUserIdAndMediaIdWithMedia(
@@ -28,22 +29,21 @@ public interface UserMediaRepository extends JpaRepository<UserMedia, UUID> {
 			@Param("mediaId") UUID mediaId);
 
 	@Query("""
-			SELECT um FROM UserMedia um
+			SELECT DISTINCT um FROM UserMedia um
 			JOIN FETCH um.media m
 			JOIN FETCH m.mediaType
-			WHERE um.userId = :userId
+			LEFT JOIN FETCH m.genres
+			WHERE um.id IN :ids
 			""")
-	List<UserMedia> findAllByUserIdWithMedia(@Param("userId") UUID userId);
+	List<UserMedia> findAllByIdInWithMedia(@Param("ids") Collection<UUID> ids);
 
 	@Query("""
-			SELECT um FROM UserMedia um
-			JOIN FETCH um.media m
-			JOIN FETCH m.mediaType
-			WHERE um.userId = :userId AND um.status = :status
+			SELECT um.media.id FROM UserMedia um
+			WHERE um.userId = :userId AND um.media.id IN :mediaIds
 			""")
-	List<UserMedia> findAllByUserIdAndStatusWithMedia(
+	List<UUID> findMediaIdsByUserIdAndMediaIdIn(
 			@Param("userId") UUID userId,
-			@Param("status") UserMediaStatus status);
+			@Param("mediaIds") Collection<UUID> mediaIds);
 
 	@Query("""
 			SELECT DISTINCT um FROM UserMedia um

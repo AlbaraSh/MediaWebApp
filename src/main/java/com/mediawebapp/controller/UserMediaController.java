@@ -1,5 +1,7 @@
 package com.mediawebapp.controller;
 
+import com.mediawebapp.dto.LibraryPageResponse;
+import com.mediawebapp.dto.Pagination;
 import com.mediawebapp.dto.UserMediaRequestDTO;
 import com.mediawebapp.dto.UserMediaResponseDTO;
 import com.mediawebapp.dto.UserMediaUpsertResult;
@@ -7,7 +9,6 @@ import com.mediawebapp.entity.UserMediaStatus;
 import com.mediawebapp.security.CurrentUserProvider;
 import com.mediawebapp.service.UserMediaService;
 import jakarta.validation.Valid;
-import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -50,18 +51,22 @@ public class UserMediaController {
 	}
 
 	/**
-	 * Lists the current user's media entries, optionally filtered by status.
-	 *
-	 * @param status optional {@link UserMediaStatus} query value
+	 * Lists the current user's media as a page. Default status is COMPLETED.
+	 * Breaking: response is a page envelope with counts, not a JSON array.
 	 */
 	@GetMapping
-	public ResponseEntity<List<UserMediaResponseDTO>> getUserMedia(
-			@RequestParam(required = false) UserMediaStatus status) {
+	public ResponseEntity<LibraryPageResponse> getUserMedia(
+			@RequestParam(required = false) UserMediaStatus status,
+			@RequestParam(required = false) String type,
+			@RequestParam(required = false) String genre,
+			@RequestParam(required = false) Integer minRating,
+			@RequestParam(required = false) Integer maxRating,
+			@RequestParam(required = false) String q,
+			@RequestParam(defaultValue = "" + Pagination.DEFAULT_PAGE) int page,
+			@RequestParam(defaultValue = "" + Pagination.DEFAULT_SIZE) int size) {
 		UUID userId = currentUserProvider.getCurrentUserId();
-		List<UserMediaResponseDTO> responses = status == null
-				? userMediaService.getAllForUser(userId)
-				: userMediaService.getAllForUserByStatus(userId, status);
-		return ResponseEntity.ok(responses);
+		return ResponseEntity.ok(userMediaService.listForUser(
+				userId, status, type, genre, minRating, maxRating, q, page, size));
 	}
 
 	/**

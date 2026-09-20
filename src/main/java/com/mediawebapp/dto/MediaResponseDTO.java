@@ -18,6 +18,22 @@ public record MediaResponseDTO(
 		Integer ratingCount,
 		MediaTypeDTO mediaType,
 		Instant createdAt,
-		Instant updatedAt
+		Instant updatedAt,
+		Boolean inLibrary
 ) {
+
+	public MediaResponseDTO withInLibrary(Boolean inLibrary) {
+		return new MediaResponseDTO(
+				id,
+				title,
+				description,
+				releaseYear,
+				genres,
+				rating,
+				ratingCount,
+				mediaType,
+				createdAt,
+				updatedAt,
+				inLibrary);
+	}
 }

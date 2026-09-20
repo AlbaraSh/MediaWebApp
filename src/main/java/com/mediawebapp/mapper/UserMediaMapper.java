@@ -2,8 +2,10 @@ package com.mediawebapp.mapper;
 
 import com.mediawebapp.dto.MediaTypeDTO;
 import com.mediawebapp.dto.UserMediaResponseDTO;
+import com.mediawebapp.entity.Genre;
 import com.mediawebapp.entity.Media;
 import com.mediawebapp.entity.UserMedia;
+import java.util.List;
 import org.springframework.stereotype.Component;
 
 /**
@@ -27,7 +29,18 @@ public class UserMediaMapper {
 				media.getId(),
 				media.getTitle(),
 				media.getReleaseYear(),
-				new MediaTypeDTO(media.getMediaType().getId(), media.getMediaType().getName())
+				new MediaTypeDTO(media.getMediaType().getId(), media.getMediaType().getName()),
+				toGenreNames(media)
 		);
+	}
+
+	private static List<String> toGenreNames(Media media) {
+		if (media.getGenres() == null || media.getGenres().isEmpty()) {
+			return List.of();
+		}
+		return media.getGenres().stream()
+				.map(Genre::getName)
+				.sorted(String.CASE_INSENSITIVE_ORDER)
+				.toList();
 	}
 }

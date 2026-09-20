@@ -2,6 +2,7 @@ package com.mediawebapp.dto;
 
 import com.mediawebapp.entity.UserMediaStatus;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -17,6 +18,7 @@ public record UserMediaResponseDTO(
 		UUID mediaId,
 		String title,
 		Short releaseYear,
-		MediaTypeDTO mediaType
+		MediaTypeDTO mediaType,
+		List<String> genres
 ) {
 }

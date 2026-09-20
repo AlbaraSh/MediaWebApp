@@ -1,20 +1,27 @@
 package com.mediawebapp.security;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.mediawebapp.controller.GenreController;
 import com.mediawebapp.controller.MediaController;
 import com.mediawebapp.controller.RecommendationController;
 import com.mediawebapp.controller.UserMediaController;
+import com.mediawebapp.dto.LibraryPageResponse;
 import com.mediawebapp.dto.MediaResponseDTO;
 import com.mediawebapp.dto.MediaTypeDTO;
+import com.mediawebapp.dto.PageResponse;
 import com.mediawebapp.dto.RecommendationResponseDTO;
+import com.mediawebapp.dto.UserMediaStatusCounts;
 import com.mediawebapp.exception.GlobalExceptionHandler;
 import com.mediawebapp.service.ExternalMediaService;
+import com.mediawebapp.service.GenreService;
 import com.mediawebapp.service.MediaService;
 import com.mediawebapp.service.RecommendationService;
 import com.mediawebapp.service.UserMediaService;
@@ -35,7 +42,12 @@ import org.springframework.test.web.servlet.MockMvc;
  * here — that bypass would make the 401 assertion pass for the wrong reason.
  */
 @ActiveProfiles("test")
-@WebMvcTest(controllers = {UserMediaController.class, MediaController.class, RecommendationController.class})
+@WebMvcTest(controllers = {
+		UserMediaController.class,
+		MediaController.class,
+		RecommendationController.class,
+		GenreController.class
+})
 @Import({
 		SecurityConfig.class,
 		JwtService.class,
@@ -64,6 +76,9 @@ class SecurityFilterChainTest {
 	@MockitoBean
 	private RecommendationService recommendationService;
 
+	@MockitoBean
+	private GenreService genreService;
+
 	private final UUID userId = UUID.fromString("11111111-1111-1111-1111-111111111111");
 	private final UUID mediaTypeId = UUID.fromString("5f73d14b-4df1-499f-8fa9-ba5a2e0c4421");
 
@@ -77,13 +92,18 @@ class SecurityFilterChainTest {
 
 	@Test
 	void protectedEndpoint_withValidToken_succeeds() throws Exception {
-		when(userMediaService.getAllForUser(userId)).thenReturn(List.of());
+		when(userMediaService.listForUser(eq(userId), any(), any(), any(), any(), any(), any(), anyInt(), anyInt()))
+				.thenReturn(LibraryPageResponse.of(
+						PageResponse.of(List.of(), 0, 20, 0),
+						UserMediaStatusCounts.empty()));
 		String token = jwtService.generateToken(userId, "alice@example.com");
 
 		mockMvc.perform(get("/api/user-media")
 						.header("Authorization", "Bearer " + token))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$").isArray());
+				.andExpect(jsonPath("$.content").isArray())
+				.andExpect(jsonPath("$.page").value(0))
+				.andExpect(jsonPath("$.counts.completed").value(0));
 	}
 
 	@Test
@@ -116,7 +136,8 @@ class SecurityFilterChainTest {
 				null,
 				new MediaTypeDTO(mediaTypeId, "Movie"),
 				Instant.parse("2026-09-13T08:00:00Z"),
-				Instant.parse("2026-09-13T08:00:00Z")
+				Instant.parse("2026-09-13T08:00:00Z"),
+				null
 		));
 		String token = jwtService.generateToken(userId, "alice@example.com");
 
@@ -137,11 +158,23 @@ class SecurityFilterChainTest {
 
 	@Test
 	void mediaRead_withoutToken_succeeds() throws Exception {
-		when(mediaService.getAllMedia()).thenReturn(List.of());
+		when(mediaService.discover(any(), any(), any(), any(), any(), any(), any(), anyInt(), anyInt()))
+				.thenReturn(PageResponse.of(List.of(), 0, 20, 0));
 
 		mockMvc.perform(get("/api/media"))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$").isArray());
+				.andExpect(jsonPath("$.content").isArray())
+				.andExpect(jsonPath("$.page").value(0));
+	}
+
+	@Test
+	void genres_withoutToken_succeeds() throws Exception {
+		when(genreService.listDistinctCatalogNames()).thenReturn(List.of("Action"));
+
+		mockMvc.perform(get("/api/genres"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$").isArray())
+				.andExpect(jsonPath("$[0]").value("Action"));
 	}
 
 	@Test

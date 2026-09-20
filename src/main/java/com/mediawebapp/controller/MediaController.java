@@ -5,10 +5,14 @@ import com.mediawebapp.dto.ImportMediaRequestDTO;
 import com.mediawebapp.dto.ImportMediaResult;
 import com.mediawebapp.dto.MediaRequestDTO;
 import com.mediawebapp.dto.MediaResponseDTO;
+import com.mediawebapp.dto.PageResponse;
+import com.mediawebapp.dto.Pagination;
+import com.mediawebapp.security.CurrentUserProvider;
 import com.mediawebapp.service.ExternalMediaService;
 import com.mediawebapp.service.MediaService;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -36,6 +40,7 @@ public class MediaController {
 
 	private final MediaService mediaService;
 	private final ExternalMediaService externalMediaService;
+	private final CurrentUserProvider currentUserProvider;
 
 	/**
 	 * Creates a media item.
@@ -54,13 +59,22 @@ public class MediaController {
 	}
 
 	/**
-	 * Lists all media items in the catalog.
-	 *
-	 * @return {@code 200 OK} with a list of media response DTOs
+	 * Browses the local catalog with optional filters, QUALITY/YEAR/TITLE sort,
+	 * and required pagination. Breaking: response is a page envelope, not a JSON array.
 	 */
 	@GetMapping
-	public ResponseEntity<List<MediaResponseDTO>> getAllMedia() {
-		return ResponseEntity.ok(mediaService.getAllMedia());
+	public ResponseEntity<PageResponse<MediaResponseDTO>> getAllMedia(
+			@RequestParam(required = false) String type,
+			@RequestParam(required = false) String genre,
+			@RequestParam(required = false) Integer year,
+			@RequestParam(required = false) String q,
+			@RequestParam(required = false) String sort,
+			@RequestParam(required = false) String direction,
+			@RequestParam(defaultValue = "" + Pagination.DEFAULT_PAGE) int page,
+			@RequestParam(defaultValue = "" + Pagination.DEFAULT_SIZE) int size) {
+		Optional<UUID> currentUserId = currentUserProvider.getCurrentUserIdIfPresent();
+		return ResponseEntity.ok(mediaService.discover(
+				currentUserId, type, genre, year, q, sort, direction, page, size));
 	}
 
 	/**
