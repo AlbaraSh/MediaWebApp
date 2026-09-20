@@ -50,11 +50,19 @@ public class JwtService {
 	 * @return compact JWT string
 	 */
 	public String generateToken(UUID userId, String email) {
+		return generateToken(userId, email, 0);
+	}
+
+	/**
+	 * Builds a signed token that is bound to the user's current {@code token_version}.
+	 */
+	public String generateToken(UUID userId, String email, int tokenVersion) {
 		Instant now = Instant.now();
 		return Jwts.builder()
 				.subject(userId.toString())
 				.claim("userId", userId.toString())
 				.claim("email", email)
+				.claim("ver", tokenVersion)
 				.issuedAt(Date.from(now))
 				.expiration(Date.from(now.plus(TOKEN_TTL)))
 				.signWith(signingKey())
@@ -77,7 +85,9 @@ public class JwtService {
 
 		UUID userId = UUID.fromString(claims.getSubject());
 		String email = claims.get("email", String.class);
-		return new AuthenticatedUser(userId, email);
+		Number versionClaim = claims.get("ver", Number.class);
+		int tokenVersion = versionClaim == null ? 0 : versionClaim.intValue();
+		return new AuthenticatedUser(userId, email, tokenVersion);
 	}
 
 	private SecretKey signingKey() {

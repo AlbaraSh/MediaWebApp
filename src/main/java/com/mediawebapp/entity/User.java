@@ -43,6 +43,10 @@ public class User {
 	@Column(name = "password_hash", nullable = false, length = 255)
 	private String passwordHash;
 
+	/** Incremented on logout so previously issued JWTs no longer match. */
+	@Column(name = "token_version", nullable = false)
+	private int tokenVersion;
+
 	/** Set by the database on insert; not written by the application. */
 	@Column(name = "created_at", nullable = false, insertable = false, updatable = false)
 	private Instant createdAt;

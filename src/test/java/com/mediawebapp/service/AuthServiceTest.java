@@ -3,6 +3,7 @@ package com.mediawebapp.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -96,7 +97,7 @@ class AuthServiceTest {
 		user.setPasswordHash(passwordEncoder.encode("secret123"));
 
 		when(userRepository.findByEmailIgnoreCase("alice@example.com")).thenReturn(Optional.of(user));
-		when(jwtService.generateToken(userId, "alice@example.com")).thenReturn("signed.jwt.token");
+		when(jwtService.generateToken(userId, "alice@example.com", 0)).thenReturn("signed.jwt.token");
 
 		AuthResponseDTO response = authService.login(
 				new LoginRequestDTO("Alice@example.com", "secret123"));
@@ -113,7 +114,7 @@ class AuthServiceTest {
 				.isInstanceOf(InvalidCredentialsException.class)
 				.hasMessage("Invalid email or password");
 
-		verify(jwtService, never()).generateToken(any(), any());
+		verify(jwtService, never()).generateToken(any(), any(), anyInt());
 	}
 
 	@Test
@@ -130,6 +131,28 @@ class AuthServiceTest {
 				.isInstanceOf(InvalidCredentialsException.class)
 				.hasMessage("Invalid email or password");
 
-		verify(jwtService, never()).generateToken(any(), any());
+		verify(jwtService, never()).generateToken(any(), any(), anyInt());
+	}
+
+	@Test
+	void logout_incrementsTokenVersion() {
+		UUID userId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+		User user = new User();
+		user.setId(userId);
+		user.setTokenVersion(2);
+		when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+
+		authService.logout(userId);
+
+		assertThat(user.getTokenVersion()).isEqualTo(3);
+	}
+
+	@Test
+	void logout_throwsWhenUserMissing() {
+		UUID userId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+		when(userRepository.findById(userId)).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> authService.logout(userId))
+				.isInstanceOf(InvalidCredentialsException.class);
 	}
 }

@@ -19,7 +19,9 @@ import com.mediawebapp.dto.MediaTypeDTO;
 import com.mediawebapp.dto.PageResponse;
 import com.mediawebapp.dto.RecommendationResponseDTO;
 import com.mediawebapp.dto.UserMediaStatusCounts;
+import com.mediawebapp.entity.User;
 import com.mediawebapp.exception.GlobalExceptionHandler;
+import com.mediawebapp.repository.UserRepository;
 import com.mediawebapp.service.ExternalMediaService;
 import com.mediawebapp.service.GenreService;
 import com.mediawebapp.service.MediaService;
@@ -27,7 +29,9 @@ import com.mediawebapp.service.RecommendationService;
 import com.mediawebapp.service.UserMediaService;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -79,8 +83,26 @@ class SecurityFilterChainTest {
 	@MockitoBean
 	private GenreService genreService;
 
+	@MockitoBean
+	private UserRepository userRepository;
+
 	private final UUID userId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+	private final UUID catalogAdminId = UUID.fromString("00000000-0000-0000-0000-000000000001");
 	private final UUID mediaTypeId = UUID.fromString("5f73d14b-4df1-499f-8fa9-ba5a2e0c4421");
+
+	@BeforeEach
+	void stubExistingUsers() {
+		stubUser(userId, "alice@example.com", 0);
+		stubUser(catalogAdminId, "dev@mediawebapp.local", 0);
+	}
+
+	private void stubUser(UUID id, String email, int tokenVersion) {
+		User user = new User();
+		user.setId(id);
+		user.setEmail(email);
+		user.setTokenVersion(tokenVersion);
+		when(userRepository.findById(id)).thenReturn(Optional.of(user));
+	}
 
 	@Test
 	void protectedEndpoint_withoutToken_returns401() throws Exception {
@@ -124,7 +146,27 @@ class SecurityFilterChainTest {
 	}
 
 	@Test
-	void mediaWrite_withValidToken_succeeds() throws Exception {
+	void mediaWrite_withNonAdminToken_returns403() throws Exception {
+		String token = jwtService.generateToken(userId, "alice@example.com");
+
+		String body = """
+				{
+				  "title": "The Matrix",
+				  "mediaTypeId": "%s"
+				}
+				""".formatted(mediaTypeId);
+
+		mockMvc.perform(post("/api/media")
+						.header("Authorization", "Bearer " + token)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.error").value("Access denied"))
+				.andExpect(jsonPath("$.status").value(403));
+	}
+
+	@Test
+	void mediaWrite_withCatalogAdminToken_succeeds() throws Exception {
 		UUID mediaId = UUID.fromString("378374f4-700b-422a-80f8-a3a802925fb7");
 		when(mediaService.createMedia(any())).thenReturn(new MediaResponseDTO(
 				mediaId,
@@ -139,7 +181,7 @@ class SecurityFilterChainTest {
 				Instant.parse("2026-09-13T08:00:00Z"),
 				null
 		));
-		String token = jwtService.generateToken(userId, "alice@example.com");
+		String token = jwtService.generateToken(catalogAdminId, "dev@mediawebapp.local");
 
 		String body = """
 				{
@@ -200,6 +242,30 @@ class SecurityFilterChainTest {
 								"""))
 				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.error").value("Unauthorized"))
+				.andExpect(jsonPath("$.status").value(401));
+	}
+
+	@Test
+	void protectedEndpoint_withDeletedUserToken_returns401() throws Exception {
+		when(userRepository.findById(userId)).thenReturn(Optional.empty());
+		String token = jwtService.generateToken(userId, "alice@example.com");
+
+		mockMvc.perform(get("/api/user-media")
+						.header("Authorization", "Bearer " + token))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.error").value("Invalid or expired JWT"))
+				.andExpect(jsonPath("$.status").value(401));
+	}
+
+	@Test
+	void protectedEndpoint_withStaleTokenVersion_returns401() throws Exception {
+		stubUser(userId, "alice@example.com", 1);
+		String token = jwtService.generateToken(userId, "alice@example.com", 0);
+
+		mockMvc.perform(get("/api/user-media")
+						.header("Authorization", "Bearer " + token))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.error").value("Invalid or expired JWT"))
 				.andExpect(jsonPath("$.status").value(401));
 	}
 

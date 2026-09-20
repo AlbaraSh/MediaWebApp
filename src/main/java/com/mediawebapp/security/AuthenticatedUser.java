@@ -8,5 +8,9 @@ import java.util.UUID;
  * {@link JwtCurrentUserProvider} reads {@code userId} from here. This is not a
  * domain entity — just the principal the filter attaches to the request.
  */
-public record AuthenticatedUser(UUID userId, String email) {
+public record AuthenticatedUser(UUID userId, String email, int tokenVersion) {
+
+	public AuthenticatedUser(UUID userId, String email) {
+		this(userId, email, 0);
+	}
 }

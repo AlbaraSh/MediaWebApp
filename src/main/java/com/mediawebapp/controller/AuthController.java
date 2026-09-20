@@ -3,6 +3,7 @@ package com.mediawebapp.controller;
 import com.mediawebapp.dto.AuthResponseDTO;
 import com.mediawebapp.dto.LoginRequestDTO;
 import com.mediawebapp.dto.RegisterRequestDTO;
+import com.mediawebapp.security.CurrentUserProvider;
 import com.mediawebapp.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
 	private final AuthService authService;
+	private final CurrentUserProvider currentUserProvider;
 
 	/**
 	 * Registers a new account.
@@ -45,5 +47,16 @@ public class AuthController {
 	@PostMapping("/login")
 	public ResponseEntity<AuthResponseDTO> login(@Valid @RequestBody LoginRequestDTO request) {
 		return ResponseEntity.ok(authService.login(request));
+	}
+
+	/**
+	 * Invalidates the caller's current JWT (and any other tokens for that account).
+	 *
+	 * @return {@code 204 No Content}
+	 */
+	@PostMapping("/logout")
+	public ResponseEntity<Void> logout() {
+		authService.logout(currentUserProvider.getCurrentUserId());
+		return ResponseEntity.noContent().build();
 	}
 }
