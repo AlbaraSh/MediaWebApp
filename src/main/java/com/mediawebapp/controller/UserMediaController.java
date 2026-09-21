@@ -70,6 +70,15 @@ public class UserMediaController {
 	}
 
 	/**
+	 * Returns the current user's shelf row for the given catalog media id.
+	 */
+	@GetMapping("/{mediaId}")
+	public ResponseEntity<UserMediaResponseDTO> getByMediaId(@PathVariable UUID mediaId) {
+		UUID userId = currentUserProvider.getCurrentUserId();
+		return ResponseEntity.ok(userMediaService.getForUser(userId, mediaId));
+	}
+
+	/**
 	 * Deletes the current user's list entry for the given catalog media id.
 	 */
 	@DeleteMapping("/{mediaId}")

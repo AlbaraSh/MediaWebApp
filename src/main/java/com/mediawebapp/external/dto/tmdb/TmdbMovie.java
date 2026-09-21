@@ -16,9 +16,10 @@ public record TmdbMovie(
 		@JsonProperty("release_date") String releaseDate,
 		List<TmdbGenre> genres,
 		@JsonProperty("vote_average") Double voteAverage,
-		@JsonProperty("vote_count") Integer voteCount
+		@JsonProperty("vote_count") Integer voteCount,
+		@JsonProperty("poster_path") String posterPath
 ) {
 	public TmdbMovie(Integer id, String title, String overview, String releaseDate) {
-		this(id, title, overview, releaseDate, null, null, null);
+		this(id, title, overview, releaseDate, null, null, null, null);
 	}
 }

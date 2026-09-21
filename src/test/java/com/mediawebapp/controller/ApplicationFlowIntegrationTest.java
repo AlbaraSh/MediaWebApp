@@ -296,7 +296,8 @@ class ApplicationFlowIntegrationTest {
 				"1999-10-15",
 				List.of(new TmdbGenre("Drama")),
 				8.4,
-				26000);
+				26000,
+				null);
 		when(tmdbAdapter.searchMovies("fight club"))
 				.thenReturn(new TmdbMovieSearchResponse(List.of(details)));
 		when(tmdbAdapter.getMovie("603")).thenReturn(details);

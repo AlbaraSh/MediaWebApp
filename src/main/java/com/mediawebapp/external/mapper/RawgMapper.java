@@ -31,7 +31,8 @@ public class RawgMapper {
 				String.valueOf(game.id()),
 				genreNames(game.genres()),
 				RawgRatingConverter.toTenPointScale(game.rating()),
-				game.ratingsCount()
+				game.ratingsCount(),
+				blankToNull(game.backgroundImage())
 		);
 	}
 

@@ -308,4 +308,12 @@ class SecurityFilterChainTest {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.movies").isArray());
 	}
+
+	@Test
+	void userMediaByMediaId_withoutToken_returns401() throws Exception {
+		mockMvc.perform(get("/api/user-media/{mediaId}", UUID.fromString("378374f4-700b-422a-80f8-a3a802925fb7")))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.error").value("Unauthorized"))
+				.andExpect(jsonPath("$.status").value(401));
+	}
 }

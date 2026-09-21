@@ -12,9 +12,10 @@ public record TmdbTv(
 		@JsonProperty("first_air_date") String firstAirDate,
 		List<TmdbGenre> genres,
 		@JsonProperty("vote_average") Double voteAverage,
-		@JsonProperty("vote_count") Integer voteCount
+		@JsonProperty("vote_count") Integer voteCount,
+		@JsonProperty("poster_path") String posterPath
 ) {
 	public TmdbTv(Integer id, String name, String overview, String firstAirDate) {
-		this(id, name, overview, firstAirDate, null, null, null);
+		this(id, name, overview, firstAirDate, null, null, null, null);
 	}
 }

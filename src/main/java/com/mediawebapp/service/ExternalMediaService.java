@@ -134,7 +134,8 @@ public class ExternalMediaService {
 				mediaType.getId(),
 				dto.genres(),
 				dto.externalRating(),
-				dto.externalRatingCount()
+				dto.externalRatingCount(),
+				dto.posterUrl()
 		);
 		MediaResponseDTO created = mediaService.createMedia(createRequest);
 

@@ -39,7 +39,7 @@ public class UserMediaQueryRepository {
 	private static final String COUNT_SQL = "SELECT COUNT(*) " + LIST_FROM_WHERE;
 
 	private static final String PAGE_SQL = "SELECT um.id " + LIST_FROM_WHERE
-			+ " ORDER BY um.rating DESC NULLS LAST, um.updated_at DESC, m.id ASC"
+			+ " ORDER BY um.created_at DESC, m.id ASC"
 			+ " LIMIT :limit OFFSET :offset";
 
 	private static final String COUNTS_SQL = """

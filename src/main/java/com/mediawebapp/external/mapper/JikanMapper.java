@@ -37,7 +37,8 @@ public class JikanMapper {
 				String.valueOf(anime.malId()),
 				combinedGenreNames(anime),
 				anime.score(),
-				anime.scoredBy()
+				anime.scoredBy(),
+				posterUrl(anime)
 		);
 	}
 
@@ -68,6 +69,17 @@ public class JikanMapper {
 			return parseYear(anime.aired().from());
 		}
 		return null;
+	}
+
+	private static String posterUrl(JikanAnime anime) {
+		if (anime.images() == null || anime.images().jpg() == null) {
+			return null;
+		}
+		String large = blankToNull(anime.images().jpg().largeImageUrl());
+		if (large != null) {
+			return large;
+		}
+		return blankToNull(anime.images().jpg().imageUrl());
 	}
 
 	private static String blankToNull(String value) {

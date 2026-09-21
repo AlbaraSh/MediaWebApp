@@ -12,6 +12,16 @@ public record RecommendationItemDTO(
 		String mediaType,
 		Short releaseYear,
 		Double externalRating,
-		Integer externalRatingCount
+		Integer externalRatingCount,
+		String posterUrl
 ) {
+	public RecommendationItemDTO(
+			UUID mediaId,
+			String title,
+			String mediaType,
+			Short releaseYear,
+			Double externalRating,
+			Integer externalRatingCount) {
+		this(mediaId, title, mediaType, releaseYear, externalRating, externalRatingCount, null);
+	}
 }

@@ -26,6 +26,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -55,6 +56,9 @@ class LibraryQueryIntegrationTest {
 	@Autowired
 	private JwtService jwtService;
 
+	@Autowired
+	private JdbcTemplate jdbcTemplate;
+
 	@MockitoBean
 	private OpenAiEmbeddingAdapter openAiEmbeddingAdapter;
 
@@ -75,18 +79,21 @@ class LibraryQueryIntegrationTest {
 	}
 
 	@Test
-	void library_defaultsToCompletedOrderedByRatingDesc() throws Exception {
-		UUID low = createAndList("Low Completed", movieTypeId, UserMediaStatus.COMPLETED, 6, "Action");
-		UUID high = createAndList("High Completed", movieTypeId, UserMediaStatus.COMPLETED, 9, "Action");
-		createAndList("Unrated Completed", movieTypeId, UserMediaStatus.COMPLETED, null, "Action");
+	void library_defaultsToCompletedOrderedByCreatedAtDesc() throws Exception {
+		UUID first = createAndList("First Completed", movieTypeId, UserMediaStatus.COMPLETED, 9, "Action");
+		UUID second = createAndList("Second Completed", movieTypeId, UserMediaStatus.COMPLETED, 6, "Action");
+		UUID third = createAndList("Third Completed", movieTypeId, UserMediaStatus.COMPLETED, null, "Action");
 		createAndList("Watching Now", movieTypeId, UserMediaStatus.WATCHING, 10, "Action");
+		stampCreatedAt(first, "2026-01-01T00:00:00Z");
+		stampCreatedAt(second, "2026-01-02T00:00:00Z");
+		stampCreatedAt(third, "2026-01-03T00:00:00Z");
 
 		mockMvc.perform(get("/api/user-media").header("Authorization", bearerToken()))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.content", hasSize(3)))
-				.andExpect(jsonPath("$.content[0].mediaId").value(high.toString()))
-				.andExpect(jsonPath("$.content[1].mediaId").value(low.toString()))
-				.andExpect(jsonPath("$.content[2].title").value("Unrated Completed"))
+				.andExpect(jsonPath("$.content[0].mediaId").value(third.toString()))
+				.andExpect(jsonPath("$.content[1].mediaId").value(second.toString()))
+				.andExpect(jsonPath("$.content[2].mediaId").value(first.toString()))
 				.andExpect(jsonPath("$.content[0].genres[0]").value("Action"))
 				.andExpect(jsonPath("$.page").value(0))
 				.andExpect(jsonPath("$.size").value(20))
@@ -95,6 +102,38 @@ class LibraryQueryIntegrationTest {
 				.andExpect(jsonPath("$.counts.watching").value(1))
 				.andExpect(jsonPath("$.counts.planned").value(0))
 				.andExpect(jsonPath("$.counts.dropped").value(0));
+	}
+
+	@Test
+	void getByMediaId_returns200WhenListed() throws Exception {
+		UUID listed = createAndList("Listed Film", movieTypeId, UserMediaStatus.WATCHING, 8, "Comedy");
+
+		mockMvc.perform(get("/api/user-media/{mediaId}", listed).header("Authorization", bearerToken()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.mediaId").value(listed.toString()))
+				.andExpect(jsonPath("$.status").value("WATCHING"))
+				.andExpect(jsonPath("$.title").value("Listed Film"))
+				.andExpect(jsonPath("$.genres[0]").value("Comedy"))
+				.andExpect(jsonPath("$.content").doesNotExist());
+	}
+
+	@Test
+	void getByMediaId_returns404WhenNotListed() throws Exception {
+		MediaResponseDTO catalogOnly = createMedia("Not Listed", movieTypeId, List.of("Drama"));
+
+		mockMvc.perform(get("/api/user-media/{mediaId}", catalogOnly.id())
+						.header("Authorization", bearerToken()))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.error").value(
+						"User media entry not found for media id: " + catalogOnly.id()))
+				.andExpect(jsonPath("$.status").value(404));
+	}
+
+	@Test
+	void getByMediaId_unauthenticated_returns401() throws Exception {
+		mockMvc.perform(get("/api/user-media/{mediaId}", UUID.randomUUID()))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.status").value(401));
 	}
 
 	@Test
@@ -228,6 +267,14 @@ class LibraryQueryIntegrationTest {
 		userMediaService.upsert(DEV_USER_ID, new UserMediaRequestDTO(
 				media.id(), status.name(), rating, null));
 		return media.id();
+	}
+
+	private void stampCreatedAt(UUID mediaId, String createdAt) {
+		jdbcTemplate.update(
+				"UPDATE user_media SET created_at = CAST(? AS timestamptz) WHERE user_id = ? AND media_id = ?",
+				createdAt,
+				DEV_USER_ID,
+				mediaId);
 	}
 
 	private MediaResponseDTO createMedia(String title, UUID typeId, List<String> genres) {

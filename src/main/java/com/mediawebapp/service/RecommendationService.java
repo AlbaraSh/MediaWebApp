@@ -208,7 +208,8 @@ public class RecommendationService {
 				row.mediaType(),
 				row.releaseYear(),
 				row.externalRating(),
-				row.externalRatingCount());
+				row.externalRatingCount(),
+				row.posterUrl());
 	}
 
 	private RecommendationResponseDTO group(List<RecommendationItemDTO> items) {

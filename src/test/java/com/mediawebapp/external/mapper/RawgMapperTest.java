@@ -27,6 +27,7 @@ class RawgMapperTest {
 		assertThat(dto.externalId()).isEqualTo("3498");
 		assertThat(dto.genres()).isEmpty();
 		assertThat(dto.externalRating()).isNull();
+		assertThat(dto.posterUrl()).isNull();
 	}
 
 	@Test
@@ -38,7 +39,8 @@ class RawgMapperTest {
 				"Plain text synopsis",
 				List.of(new RawgNamedEntry("Action"), new RawgNamedEntry("Adventure")),
 				4.47,
-				6600);
+				6600,
+				null);
 
 		ExternalMediaDTO dto = mapper.toDto(game);
 
@@ -71,5 +73,29 @@ class RawgMapperTest {
 		assertThat(mapper.toDtos(null)).isEmpty();
 		assertThat(mapper.toDtos(new RawgSearchResponse(null))).isEmpty();
 		assertThat(mapper.toDtos(new RawgSearchResponse(List.of()))).isEmpty();
+	}
+
+	@Test
+	void toDto_mapsBackgroundImage() {
+		RawgGame game = new RawgGame(
+				3498,
+				"Grand Theft Auto V",
+				"2013-09-17",
+				"Plain text synopsis",
+				null,
+				null,
+				null,
+				"https://media.rawg.io/media/games/456/456.jpg");
+
+		assertThat(mapper.toDto(game).posterUrl())
+				.isEqualTo("https://media.rawg.io/media/games/456/456.jpg");
+	}
+
+	@Test
+	void toDto_mapsBlankBackgroundImageToNull() {
+		RawgGame game = new RawgGame(
+				1, "Game", "2020-01-01", null, null, null, null, "  ");
+
+		assertThat(mapper.toDto(game).posterUrl()).isNull();
 	}
 }

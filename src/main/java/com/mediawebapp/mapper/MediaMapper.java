@@ -19,6 +19,7 @@ public class MediaMapper {
 		media.setReleaseYear(request.releaseYear());
 		media.setExternalRating(request.rating());
 		media.setExternalRatingCount(request.ratingCount());
+		media.setPosterUrl(request.posterUrl());
 
 		MediaType mediaTypeReference = new MediaType();
 		mediaTypeReference.setId(request.mediaTypeId());
@@ -43,7 +44,8 @@ public class MediaMapper {
 				toMediaTypeDto(media.getMediaType()),
 				media.getCreatedAt(),
 				media.getUpdatedAt(),
-				inLibrary
+				inLibrary,
+				media.getPosterUrl()
 		);
 	}
 

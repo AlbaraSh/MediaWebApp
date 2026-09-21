@@ -137,6 +137,30 @@ class MediaControllerTest {
 		assertThat(captor.getValue().genres()).containsExactly("action", "Sci-Fi");
 		assertThat(captor.getValue().rating()).isEqualTo(8.7);
 		assertThat(captor.getValue().ratingCount()).isEqualTo(18500);
+		assertThat(captor.getValue().posterUrl()).isNull();
+	}
+
+	@Test
+	void createMedia_forwardsOptionalPosterUrl() throws Exception {
+		when(mediaService.createMedia(any())).thenReturn(sampleResponse("The Matrix", (short) 1999));
+
+		String requestBody = """
+				{
+				  "title": "The Matrix",
+				  "mediaTypeId": "%s",
+				  "posterUrl": "https://image.tmdb.org/t/p/w500/f89U3ADr1oiB1s9GkdPOEpCl.jpg"
+				}
+				""".formatted(mediaTypeId);
+
+		mockMvc.perform(post("/api/media")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(requestBody))
+				.andExpect(status().isCreated());
+
+		ArgumentCaptor<MediaRequestDTO> captor = ArgumentCaptor.forClass(MediaRequestDTO.class);
+		verify(mediaService).createMedia(captor.capture());
+		assertThat(captor.getValue().posterUrl())
+				.isEqualTo("https://image.tmdb.org/t/p/w500/f89U3ADr1oiB1s9GkdPOEpCl.jpg");
 	}
 
 	/** GET /api/media returns 200 and a page envelope of media items. */

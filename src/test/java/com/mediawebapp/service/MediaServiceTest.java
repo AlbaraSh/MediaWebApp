@@ -125,6 +125,7 @@ class MediaServiceTest {
 		assertThat(response.mediaType().name()).isEqualTo("Movie");
 		assertThat(response.genres()).isEmpty();
 		assertThat(response.rating()).isNull();
+		assertThat(response.posterUrl()).isNull();
 		assertThat(response.createdAt()).isNotNull();
 		assertThat(response.updatedAt()).isNotNull();
 
@@ -212,6 +213,38 @@ class MediaServiceTest {
 		verify(mediaRepository, times(2)).saveAndFlush(captor.capture());
 		assertThat(captor.getAllValues().get(0).getExternalRating()).isEqualTo(8.7);
 		assertThat(captor.getAllValues().get(0).getRatingLastUpdatedAt()).isNotNull();
+	}
+
+	@Test
+	void shouldPersistPosterUrlOnCreate() {
+		MediaRequestDTO request = new MediaRequestDTO(
+				"The Matrix",
+				null,
+				(short) 1999,
+				mediaTypeId,
+				null,
+				null,
+				null,
+				"https://image.tmdb.org/t/p/w500/f89U3ADr1oiB1s9GkdPOEpCl.jpg"
+		);
+
+		when(mediaTypeRepository.findById(mediaTypeId)).thenReturn(Optional.of(mediaType));
+		when(mediaRepository.saveAndFlush(any(Media.class))).thenAnswer(invocation -> {
+			Media media = invocation.getArgument(0);
+			media.setId(mediaId);
+			media.setCreatedAt(Instant.parse("2026-09-07T09:31:11.874953Z"));
+			media.setUpdatedAt(Instant.parse("2026-09-07T09:31:11.874953Z"));
+			return media;
+		});
+
+		MediaResponseDTO response = mediaService.createMedia(request);
+
+		assertThat(response.posterUrl())
+				.isEqualTo("https://image.tmdb.org/t/p/w500/f89U3ADr1oiB1s9GkdPOEpCl.jpg");
+		ArgumentCaptor<Media> captor = ArgumentCaptor.forClass(Media.class);
+		verify(mediaRepository).saveAndFlush(captor.capture());
+		assertThat(captor.getValue().getPosterUrl())
+				.isEqualTo("https://image.tmdb.org/t/p/w500/f89U3ADr1oiB1s9GkdPOEpCl.jpg");
 	}
 
 	/** Create fails with ResourceNotFoundException when mediaTypeId does not exist; nothing is saved. */

@@ -19,6 +19,21 @@ public record UserMediaResponseDTO(
 		String title,
 		Short releaseYear,
 		MediaTypeDTO mediaType,
-		List<String> genres
+		List<String> genres,
+		String posterUrl
 ) {
+	public UserMediaResponseDTO(
+			UserMediaStatus status,
+			Integer rating,
+			String review,
+			Instant createdAt,
+			Instant updatedAt,
+			UUID mediaId,
+			String title,
+			Short releaseYear,
+			MediaTypeDTO mediaType,
+			List<String> genres) {
+		this(status, rating, review, createdAt, updatedAt, mediaId, title, releaseYear,
+				mediaType, genres, null);
+	}
 }

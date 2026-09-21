@@ -244,7 +244,8 @@ class ExternalMediaServiceTest {
 				"1999-10-15",
 				List.of(new TmdbGenre("Drama")),
 				8.4,
-				21000));
+				21000,
+				"/pB8BM7pdSp9MRfnnWJTFNraSgL.jpg"));
 		when(mediaExternalIdRepository.findBySourceAndExternalIdWithMedia("TMDB", "movie:550"))
 				.thenReturn(Optional.empty());
 		when(mediaTypeRepository.findByName("Movie")).thenReturn(Optional.of(movieType()));
@@ -257,6 +258,8 @@ class ExternalMediaServiceTest {
 		assertThat(requestCaptor.getValue().genres()).containsExactly("Drama");
 		assertThat(requestCaptor.getValue().rating()).isEqualTo(8.4);
 		assertThat(requestCaptor.getValue().ratingCount()).isEqualTo(21000);
+		assertThat(requestCaptor.getValue().posterUrl())
+				.isEqualTo("https://image.tmdb.org/t/p/w500/pB8BM7pdSp9MRfnnWJTFNraSgL.jpg");
 	}
 
 	@Test
