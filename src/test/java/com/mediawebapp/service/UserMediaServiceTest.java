@@ -340,6 +340,30 @@ class UserMediaServiceTest {
 	}
 
 	@Test
+	void shouldReturnEntryForUserAndMediaId() {
+		UserMedia entry = existingEntry(UserMediaStatus.COMPLETED, 9, "Finished it");
+		when(userMediaRepository.findByUserIdAndMediaIdWithMedia(userId, mediaId))
+				.thenReturn(Optional.of(entry));
+
+		UserMediaResponseDTO response = userMediaService.getForUser(userId, mediaId);
+
+		assertThat(response.mediaId()).isEqualTo(mediaId);
+		assertThat(response.status()).isEqualTo(UserMediaStatus.COMPLETED);
+		assertThat(response.rating()).isEqualTo(9);
+		assertThat(response.title()).isEqualTo("The Matrix");
+	}
+
+	@Test
+	void shouldThrowWhenGettingMissingEntry() {
+		when(userMediaRepository.findByUserIdAndMediaIdWithMedia(userId, mediaId))
+				.thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> userMediaService.getForUser(userId, mediaId))
+				.isInstanceOf(ResourceNotFoundException.class)
+				.hasMessageContaining(mediaId.toString());
+	}
+
+	@Test
 	void shouldRejectMinRatingGreaterThanMaxRating() {
 		assertThatThrownBy(() -> userMediaService.listForUser(
 				userId, null, null, null, 8, 3, null, 0, 20))

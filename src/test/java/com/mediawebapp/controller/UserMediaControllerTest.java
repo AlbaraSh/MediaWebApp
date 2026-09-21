@@ -207,6 +207,34 @@ class UserMediaControllerTest {
 				eq(20));
 	}
 
+	/** GET /api/user-media/{mediaId} returns 200 and the current user's shelf row. */
+	@Test
+	void getByMediaId_returns200WhenListed() throws Exception {
+		when(userMediaService.getForUser(userId, mediaId)).thenReturn(sampleResponse());
+
+		mockMvc.perform(get("/api/user-media/{mediaId}", mediaId))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.mediaId").value(mediaId.toString()))
+				.andExpect(jsonPath("$.status").value("WATCHING"))
+				.andExpect(jsonPath("$.title").value("The Matrix"))
+				.andExpect(jsonPath("$.userId").doesNotExist());
+
+		verify(userMediaService).getForUser(userId, mediaId);
+	}
+
+	/** GET /api/user-media/{mediaId} returns 404 when the current user has no row for that media. */
+	@Test
+	void getByMediaId_returns404WhenNotListed() throws Exception {
+		when(userMediaService.getForUser(userId, mediaId))
+				.thenThrow(new ResourceNotFoundException(
+						"User media entry not found for media id: " + mediaId));
+
+		mockMvc.perform(get("/api/user-media/{mediaId}", mediaId))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.error").value("User media entry not found for media id: " + mediaId))
+				.andExpect(jsonPath("$.status").value(404));
+	}
+
 	/** GET with an unknown status query value is rejected (enum binding failure). */
 	@Test
 	void getUserMedia_returns400WhenStatusQueryInvalid() throws Exception {

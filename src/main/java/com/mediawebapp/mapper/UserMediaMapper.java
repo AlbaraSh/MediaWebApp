@@ -30,7 +30,8 @@ public class UserMediaMapper {
 				media.getTitle(),
 				media.getReleaseYear(),
 				new MediaTypeDTO(media.getMediaType().getId(), media.getMediaType().getName()),
-				toGenreNames(media)
+				toGenreNames(media),
+				media.getPosterUrl()
 		);
 	}
 

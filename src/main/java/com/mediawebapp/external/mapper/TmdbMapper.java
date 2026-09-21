@@ -13,6 +13,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class TmdbMapper {
 
+	private static final String POSTER_BASE_URL = "https://image.tmdb.org/t/p/w500";
+
 	public List<ExternalMediaDTO> toMovieDtos(TmdbMovieSearchResponse response) {
 		if (response == null || response.results() == null) {
 			return List.of();
@@ -43,7 +45,8 @@ public class TmdbMapper {
 				"movie:" + movie.id(),
 				genreNames(movie.genres()),
 				movie.voteAverage(),
-				movie.voteCount()
+				movie.voteCount(),
+				posterUrl(movie.posterPath())
 		);
 	}
 
@@ -57,7 +60,8 @@ public class TmdbMapper {
 				"tv:" + show.id(),
 				genreNames(show.genres()),
 				show.voteAverage(),
-				show.voteCount()
+				show.voteCount(),
+				posterUrl(show.posterPath())
 		);
 	}
 
@@ -72,6 +76,11 @@ public class TmdbMapper {
 			}
 		}
 		return List.copyOf(names);
+	}
+
+	private static String posterUrl(String posterPath) {
+		String path = blankToNull(posterPath);
+		return path == null ? null : POSTER_BASE_URL + path;
 	}
 
 	private static String blankToNull(String value) {

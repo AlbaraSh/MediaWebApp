@@ -13,6 +13,17 @@ public record MediaSimilarityRow(
 		Short releaseYear,
 		Double externalRating,
 		Integer externalRatingCount,
+		String posterUrl,
 		Double similarity
 ) {
+	public MediaSimilarityRow(
+			UUID mediaId,
+			String title,
+			String mediaType,
+			Short releaseYear,
+			Double externalRating,
+			Integer externalRatingCount,
+			Double similarity) {
+		this(mediaId, title, mediaType, releaseYear, externalRating, externalRatingCount, null, similarity);
+	}
 }

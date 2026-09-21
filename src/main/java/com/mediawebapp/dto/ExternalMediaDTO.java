@@ -16,6 +16,20 @@ public record ExternalMediaDTO(
 		String externalId,
 		List<String> genres,
 		Double externalRating,
-		Integer externalRatingCount
+		Integer externalRatingCount,
+		String posterUrl
 ) {
+	public ExternalMediaDTO(
+			String title,
+			String description,
+			Short releaseYear,
+			String mediaType,
+			String provider,
+			String externalId,
+			List<String> genres,
+			Double externalRating,
+			Integer externalRatingCount) {
+		this(title, description, releaseYear, mediaType, provider, externalId, genres,
+				externalRating, externalRatingCount, null);
+	}
 }

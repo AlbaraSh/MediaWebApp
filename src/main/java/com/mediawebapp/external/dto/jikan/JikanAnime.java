@@ -15,9 +15,10 @@ public record JikanAnime(
 		List<JikanNamedEntry> themes,
 		List<JikanNamedEntry> demographics,
 		Double score,
-		@JsonProperty("scored_by") Integer scoredBy
+		@JsonProperty("scored_by") Integer scoredBy,
+		JikanImages images
 ) {
 	public JikanAnime(Integer malId, String title, String synopsis, Integer year, JikanAired aired) {
-		this(malId, title, synopsis, year, aired, null, null, null, null, null);
+		this(malId, title, synopsis, year, aired, null, null, null, null, null, null);
 	}
 }

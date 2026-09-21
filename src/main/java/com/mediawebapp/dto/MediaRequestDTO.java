@@ -35,6 +35,18 @@ public record MediaRequestDTO(
 		Double rating,
 
 		@Min(value = 0, message = "Rating count must be at least 0")
-		Integer ratingCount
+		Integer ratingCount,
+
+		String posterUrl
 ) {
+	public MediaRequestDTO(
+			String title,
+			String description,
+			Short releaseYear,
+			UUID mediaTypeId,
+			List<String> genres,
+			Double rating,
+			Integer ratingCount) {
+		this(title, description, releaseYear, mediaTypeId, genres, rating, ratingCount, null);
+	}
 }

@@ -83,7 +83,7 @@ public class UserMediaService {
 
 	/**
 	 * Lists the current user's shelf as a page. Default status is COMPLETED.
-	 * Sort is fixed: user rating DESC NULLS LAST, updated_at DESC, media id ASC.
+	 * Sort is fixed: created_at DESC (most recently added first), media id ASC.
 	 */
 	@Transactional(readOnly = true)
 	public LibraryPageResponse listForUser(
@@ -123,6 +123,20 @@ public class UserMediaService {
 		UserMediaStatusCounts counts = userMediaQueryRepository.countByStatus(
 				userId, typeName, genreName, query);
 		return LibraryPageResponse.of(PageResponse.of(content, page, size, totalElements), counts);
+	}
+
+	/**
+	 * Returns the current user's shelf row for {@code mediaId}.
+	 *
+	 * @throws ResourceNotFoundException if no such entry exists
+	 */
+	@Transactional(readOnly = true)
+	public UserMediaResponseDTO getForUser(UUID userId, UUID mediaId) {
+		UserMedia entry = userMediaRepository
+				.findByUserIdAndMediaIdWithMedia(userId, mediaId)
+				.orElseThrow(() -> new ResourceNotFoundException(
+						"User media entry not found for media id: " + mediaId));
+		return userMediaMapper.toResponseDto(entry);
 	}
 
 	/**

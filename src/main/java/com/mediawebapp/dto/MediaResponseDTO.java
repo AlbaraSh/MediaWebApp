@@ -19,8 +19,25 @@ public record MediaResponseDTO(
 		MediaTypeDTO mediaType,
 		Instant createdAt,
 		Instant updatedAt,
-		Boolean inLibrary
+		Boolean inLibrary,
+		String posterUrl
 ) {
+
+	public MediaResponseDTO(
+			UUID id,
+			String title,
+			String description,
+			Short releaseYear,
+			List<String> genres,
+			Double rating,
+			Integer ratingCount,
+			MediaTypeDTO mediaType,
+			Instant createdAt,
+			Instant updatedAt,
+			Boolean inLibrary) {
+		this(id, title, description, releaseYear, genres, rating, ratingCount, mediaType,
+				createdAt, updatedAt, inLibrary, null);
+	}
 
 	public MediaResponseDTO withInLibrary(Boolean inLibrary) {
 		return new MediaResponseDTO(
@@ -34,6 +51,7 @@ public record MediaResponseDTO(
 				mediaType,
 				createdAt,
 				updatedAt,
-				inLibrary);
+				inLibrary,
+				posterUrl);
 	}
 }

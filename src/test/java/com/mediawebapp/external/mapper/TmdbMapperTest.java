@@ -30,6 +30,7 @@ class TmdbMapperTest {
 		assertThat(dto.genres()).isEmpty();
 		assertThat(dto.externalRating()).isNull();
 		assertThat(dto.externalRatingCount()).isNull();
+		assertThat(dto.posterUrl()).isNull();
 	}
 
 	@Test
@@ -41,7 +42,8 @@ class TmdbMapperTest {
 				"1999-10-15",
 				List.of(new TmdbGenre("Drama"), new TmdbGenre(" Thriller "), new TmdbGenre("  ")),
 				8.433,
-				27238);
+				27238,
+				null);
 
 		ExternalMediaDTO dto = mapper.toMovieDto(movie);
 
@@ -61,6 +63,7 @@ class TmdbMapperTest {
 		assertThat(dto.mediaType()).isEqualTo("TV Show");
 		assertThat(dto.provider()).isEqualTo("TMDB");
 		assertThat(dto.externalId()).isEqualTo("tv:1396");
+		assertThat(dto.posterUrl()).isNull();
 	}
 
 	@Test
@@ -100,5 +103,45 @@ class TmdbMapperTest {
 	void toTvDtos_handlesNullResponse() {
 		assertThat(mapper.toTvDtos(null)).isEmpty();
 		assertThat(mapper.toTvDtos(new TmdbTvSearchResponse(null))).isEmpty();
+	}
+
+	@Test
+	void toMovieDto_mapsPosterPathToTmdbImageUrl() {
+		TmdbMovie movie = new TmdbMovie(
+				550,
+				"Fight Club",
+				"Overview",
+				"1999-10-15",
+				null,
+				null,
+				null,
+				"/pB8BM7pdSp9MRfnnWJTFNraSgL.jpg");
+
+		assertThat(mapper.toMovieDto(movie).posterUrl())
+				.isEqualTo("https://image.tmdb.org/t/p/w500/pB8BM7pdSp9MRfnnWJTFNraSgL.jpg");
+	}
+
+	@Test
+	void toMovieDto_mapsBlankPosterPathToNull() {
+		TmdbMovie movie = new TmdbMovie(
+				1, "Untitled", "Overview", null, null, null, null, "  ");
+
+		assertThat(mapper.toMovieDto(movie).posterUrl()).isNull();
+	}
+
+	@Test
+	void toTvDto_mapsPosterPathToTmdbImageUrl() {
+		TmdbTv show = new TmdbTv(
+				1396,
+				"Breaking Bad",
+				"A chemistry teacher.",
+				"2008-01-20",
+				null,
+				null,
+				null,
+				"/ggFHVNu6YYI5L9pCfOacjizRYNE.jpg");
+
+		assertThat(mapper.toTvDto(show).posterUrl())
+				.isEqualTo("https://image.tmdb.org/t/p/w500/ggFHVNu6YYI5L9pCfOacjizRYNE.jpg");
 	}
 }

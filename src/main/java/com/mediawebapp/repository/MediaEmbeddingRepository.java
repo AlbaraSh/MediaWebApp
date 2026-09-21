@@ -46,6 +46,7 @@ public class MediaEmbeddingRepository {
 			       m.release_year AS release_year,
 			       m.external_rating AS external_rating,
 			       m.external_rating_count AS external_rating_count,
+			       m.poster_url AS poster_url,
 			       1 - (me.embedding <=> CAST(:embedding AS vector)) AS similarity
 			FROM media_embeddings me
 			JOIN media m ON m.id = me.media_id
@@ -62,6 +63,7 @@ public class MediaEmbeddingRepository {
 			       m.release_year AS release_year,
 			       m.external_rating AS external_rating,
 			       m.external_rating_count AS external_rating_count,
+			       m.poster_url AS poster_url,
 			       1 - (me.embedding <=> CAST(:embedding AS vector)) AS similarity
 			FROM media_embeddings me
 			JOIN media m ON m.id = me.media_id
@@ -82,6 +84,7 @@ public class MediaEmbeddingRepository {
 			       m.release_year AS release_year,
 			       m.external_rating AS external_rating,
 			       m.external_rating_count AS external_rating_count,
+			       m.poster_url AS poster_url,
 			       NULL::float8 AS similarity
 			FROM media m
 			JOIN media_types mt ON mt.id = m.media_type_id
@@ -180,6 +183,7 @@ public class MediaEmbeddingRepository {
 				year == null ? null : ((Number) year).shortValue(),
 				rating == null ? null : ((Number) rating).doubleValue(),
 				ratingCount == null ? null : ((Number) ratingCount).intValue(),
+				rs.getString("poster_url"),
 				similarity == null ? null : ((Number) similarity).doubleValue());
 	}
 }

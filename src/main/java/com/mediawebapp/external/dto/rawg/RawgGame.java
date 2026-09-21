@@ -12,9 +12,10 @@ public record RawgGame(
 		@JsonProperty("description_raw") String descriptionRaw,
 		List<RawgNamedEntry> genres,
 		Double rating,
-		@JsonProperty("ratings_count") Integer ratingsCount
+		@JsonProperty("ratings_count") Integer ratingsCount,
+		@JsonProperty("background_image") String backgroundImage
 ) {
 	public RawgGame(Integer id, String name, String released, String descriptionRaw) {
-		this(id, name, released, descriptionRaw, null, null, null);
+		this(id, name, released, descriptionRaw, null, null, null, null);
 	}
 }

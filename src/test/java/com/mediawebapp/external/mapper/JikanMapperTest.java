@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.mediawebapp.dto.ExternalMediaDTO;
 import com.mediawebapp.external.dto.jikan.JikanAired;
 import com.mediawebapp.external.dto.jikan.JikanAnime;
+import com.mediawebapp.external.dto.jikan.JikanImageSet;
+import com.mediawebapp.external.dto.jikan.JikanImages;
 import com.mediawebapp.external.dto.jikan.JikanNamedEntry;
 import com.mediawebapp.external.dto.jikan.JikanSearchResponse;
 import java.util.List;
@@ -29,6 +31,7 @@ class JikanMapperTest {
 		assertThat(dto.externalId()).isEqualTo("1");
 		assertThat(dto.genres()).isEmpty();
 		assertThat(dto.externalRating()).isNull();
+		assertThat(dto.posterUrl()).isNull();
 	}
 
 	@Test
@@ -43,7 +46,8 @@ class JikanMapperTest {
 				List.of(new JikanNamedEntry("Adult Cast"), new JikanNamedEntry("Action")),
 				List.of(new JikanNamedEntry("Seinen"), new JikanNamedEntry("  ")),
 				8.75,
-				900000);
+				900000,
+				null);
 
 		ExternalMediaDTO dto = mapper.toDto(anime);
 
@@ -77,5 +81,54 @@ class JikanMapperTest {
 		assertThat(mapper.toDtos(null)).isEmpty();
 		assertThat(mapper.toDtos(new JikanSearchResponse(null))).isEmpty();
 		assertThat(mapper.toDtos(new JikanSearchResponse(List.of()))).isEmpty();
+	}
+
+	@Test
+	void toDto_prefersLargeJpgImageUrl() {
+		JikanAnime anime = new JikanAnime(
+				1,
+				"Cowboy Bebop",
+				"Synopsis",
+				1998,
+				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				new JikanImages(new JikanImageSet(
+						"https://cdn.myanimelist.net/images/anime/small.jpg",
+						"https://cdn.myanimelist.net/images/anime/large.jpg")));
+
+		assertThat(mapper.toDto(anime).posterUrl())
+				.isEqualTo("https://cdn.myanimelist.net/images/anime/large.jpg");
+	}
+
+	@Test
+	void toDto_fallsBackToJpgImageUrlWhenLargeMissing() {
+		JikanAnime anime = new JikanAnime(
+				1,
+				"Cowboy Bebop",
+				"Synopsis",
+				1998,
+				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				new JikanImages(new JikanImageSet(
+						"https://cdn.myanimelist.net/images/anime/small.jpg",
+						null)));
+
+		assertThat(mapper.toDto(anime).posterUrl())
+				.isEqualTo("https://cdn.myanimelist.net/images/anime/small.jpg");
+	}
+
+	@Test
+	void toDto_mapsMissingImagesToNull() {
+		JikanAnime anime = new JikanAnime(5, "Unknown", null, null, null);
+
+		assertThat(mapper.toDto(anime).posterUrl()).isNull();
 	}
 }

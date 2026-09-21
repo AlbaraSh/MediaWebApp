@@ -58,6 +58,9 @@ public class Media {
 	@Column(name = "rating_last_updated_at")
 	private Instant ratingLastUpdatedAt;
 
+	@Column(name = "poster_url", columnDefinition = "TEXT")
+	private String posterUrl;
+
 	@ManyToMany
 	@JoinTable(
 			name = "media_genres",
