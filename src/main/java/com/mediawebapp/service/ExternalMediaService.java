@@ -1,5 +1,6 @@
 package com.mediawebapp.service;
 
+import com.mediawebapp.config.CacheConfig;
 import com.mediawebapp.dto.ExternalMediaDTO;
 import com.mediawebapp.dto.ImportMediaRequestDTO;
 import com.mediawebapp.dto.ImportMediaResult;
@@ -24,6 +25,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -52,6 +54,10 @@ public class ExternalMediaService {
 	private final MediaMapper mediaMapper;
 	private final TransactionTemplate transactionTemplate;
 
+	@Cacheable(
+			cacheNames = CacheConfig.EXTERNAL_SEARCH,
+			key = "T(com.mediawebapp.service.ExternalMediaService).searchCacheKey(#type, #query)",
+			condition = "#query != null && !#query.isBlank() && #type != null && !#type.isBlank()")
 	public List<ExternalMediaDTO> search(String query, String type) {
 		if (query == null || query.isBlank()) {
 			throw new BadRequestException("Query is required");
@@ -72,12 +78,20 @@ public class ExternalMediaService {
 		return results.stream().limit(10).toList();
 	}
 
+	@Cacheable(
+			cacheNames = CacheConfig.EXTERNAL_DETAILS,
+			key = "T(com.mediawebapp.service.ExternalMediaService).detailsCacheKey(#provider, #externalId)",
+			condition = "#provider != null && !#provider.isBlank() && #externalId != null && !#externalId.isBlank()")
 	public ExternalMediaDTO getByExternalId(String provider, String externalId) {
-		String lowercaseProvider = requireLowercaseProvider(provider);
-		if (externalId == null || externalId.isBlank()) {
-			throw new BadRequestException("External id is required");
-		}
-		return fetchAndMap(lowercaseProvider, canonicalizeExternalId(lowercaseProvider, externalId));
+		return fetchExternalDetails(provider, externalId);
+	}
+
+	/**
+	 * Same fetch+map as {@link #getByExternalId} with no cache. Used by the
+	 * rating-refresh job so persisted ratings are never served from a stale details entry.
+	 */
+	public ExternalMediaDTO getByExternalIdUncached(String provider, String externalId) {
+		return fetchExternalDetails(provider, externalId);
 	}
 
 	public ImportMediaResult importMedia(ImportMediaRequestDTO request) {
@@ -167,6 +181,14 @@ public class ExternalMediaService {
 						"Media mapping not found for source " + source + " and id " + externalId)));
 	}
 
+	private ExternalMediaDTO fetchExternalDetails(String provider, String externalId) {
+		String lowercaseProvider = requireLowercaseProvider(provider);
+		if (externalId == null || externalId.isBlank()) {
+			throw new BadRequestException("External id is required");
+		}
+		return fetchAndMap(lowercaseProvider, canonicalizeExternalId(lowercaseProvider, externalId));
+	}
+
 	private ExternalMediaDTO fetchAndMap(String lowercaseProvider, String externalId) {
 		return switch (lowercaseProvider) {
 			case "tmdb" -> fetchTmdb(externalId);
@@ -207,6 +229,15 @@ public class ExternalMediaService {
 			return TV_PREFIX + tmdbId;
 		}
 		throw new BadRequestException("TMDB external id must start with 'movie:' or 'tv:'");
+	}
+
+	public static String searchCacheKey(String type, String query) {
+		return type.toUpperCase(Locale.ROOT) + ':' + query.trim().toLowerCase(Locale.ROOT);
+	}
+
+	public static String detailsCacheKey(String provider, String externalId) {
+		String lowercaseProvider = provider.toLowerCase(Locale.ROOT);
+		return lowercaseProvider + ':' + canonicalizeExternalId(lowercaseProvider, externalId);
 	}
 
 	private static String requireLowercaseProvider(String provider) {

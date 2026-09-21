@@ -1,5 +1,6 @@
 package com.mediawebapp.schedule;
 
+import com.mediawebapp.config.CacheConfig;
 import com.mediawebapp.dto.ExternalMediaDTO;
 import com.mediawebapp.entity.Media;
 import com.mediawebapp.entity.MediaExternalId;
@@ -17,6 +18,8 @@ import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -36,6 +39,7 @@ public class RatingRefreshJob {
 	private final MediaExternalIdRepository mediaExternalIdRepository;
 	private final ExternalMediaService externalMediaService;
 	private final TransactionTemplate transactionTemplate;
+	private final CacheManager cacheManager;
 	private final BackoffSleeper backoffSleeper;
 	private final int staleMonths;
 
@@ -44,12 +48,14 @@ public class RatingRefreshJob {
 			MediaExternalIdRepository mediaExternalIdRepository,
 			ExternalMediaService externalMediaService,
 			TransactionTemplate transactionTemplate,
+			CacheManager cacheManager,
 			BackoffSleeper backoffSleeper,
 			@Value("${ratings.refresh.stale-months:3}") int staleMonths) {
 		this.mediaRepository = mediaRepository;
 		this.mediaExternalIdRepository = mediaExternalIdRepository;
 		this.externalMediaService = externalMediaService;
 		this.transactionTemplate = transactionTemplate;
+		this.cacheManager = cacheManager;
 		this.backoffSleeper = backoffSleeper;
 		this.staleMonths = staleMonths;
 	}
@@ -96,12 +102,20 @@ public class RatingRefreshJob {
 			mediaRepository.save(media);
 			return null;
 		});
+		evictMediaById(mediaId);
+	}
+
+	private void evictMediaById(UUID mediaId) {
+		Cache cache = cacheManager.getCache(CacheConfig.MEDIA_BY_ID);
+		if (cache != null) {
+			cache.evict(mediaId);
+		}
 	}
 
 	private ExternalMediaDTO fetchWithRetry(UUID mediaId, String provider, String externalId) {
 		for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
 			try {
-				return externalMediaService.getByExternalId(provider, externalId);
+				return externalMediaService.getByExternalIdUncached(provider, externalId);
 			} catch (ResourceNotFoundException exception) {
 				log.warn("Skipping rating refresh for media {} ({} {}): external id not found",
 						mediaId, provider, externalId);

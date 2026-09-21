@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mediawebapp.config.CacheConfig;
 import com.mediawebapp.config.TestContainerConfig;
 import com.mediawebapp.dto.MediaRequestDTO;
 import com.mediawebapp.external.adapter.OpenAiEmbeddingAdapter;
@@ -33,6 +34,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -72,6 +75,9 @@ class ApplicationFlowIntegrationTest {
 	@Autowired
 	private JwtService jwtService;
 
+	@Autowired
+	private CacheManager cacheManager;
+
 	@MockitoBean
 	private OpenAiEmbeddingAdapter openAiEmbeddingAdapter;
 
@@ -83,6 +89,12 @@ class ApplicationFlowIntegrationTest {
 
 	@BeforeEach
 	void loadTypes() {
+		for (String name : CacheConfig.CACHE_NAMES) {
+			Cache cache = cacheManager.getCache(name);
+			if (cache != null) {
+				cache.clear();
+			}
+		}
 		movieTypeId = mediaTypeRepository.findByName("Movie").orElseThrow().getId();
 		tvTypeId = mediaTypeRepository.findByName("TV Show").orElseThrow().getId();
 	}

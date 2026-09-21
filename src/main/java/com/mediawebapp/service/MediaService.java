@@ -1,5 +1,6 @@
 package com.mediawebapp.service;
 
+import com.mediawebapp.config.CacheConfig;
 import com.mediawebapp.dto.CatalogType;
 import com.mediawebapp.dto.DiscoverSort;
 import com.mediawebapp.dto.MediaRequestDTO;
@@ -29,6 +30,7 @@ import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -144,6 +146,7 @@ public class MediaService {
 		return PageResponse.of(content, page, size, totalElements);
 	}
 
+	@Cacheable(cacheNames = CacheConfig.MEDIA_BY_ID, key = "#id")
 	@Transactional(readOnly = true)
 	public MediaResponseDTO getMediaById(UUID id) {
 		Media media = mediaRepository.findByIdWithMediaType(id)
