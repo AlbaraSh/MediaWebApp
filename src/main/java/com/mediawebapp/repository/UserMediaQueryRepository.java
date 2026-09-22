@@ -1,5 +1,7 @@
 package com.mediawebapp.repository;
 
+import com.mediawebapp.dto.LibrarySort;
+import com.mediawebapp.dto.SortDirection;
 import com.mediawebapp.dto.UserMediaStatusCounts;
 import com.mediawebapp.entity.UserMediaStatus;
 import java.util.EnumMap;
@@ -39,8 +41,17 @@ public class UserMediaQueryRepository {
 	private static final String COUNT_SQL = "SELECT COUNT(*) " + LIST_FROM_WHERE;
 
 	private static final String PAGE_SQL = "SELECT um.id " + LIST_FROM_WHERE
-			+ " ORDER BY um.created_at DESC, m.id ASC"
+			+ " ORDER BY %s"
 			+ " LIMIT :limit OFFSET :offset";
+
+	private static final String SHELF_GENRES_SQL = """
+			SELECT DISTINCT g.name
+			FROM user_media um
+			JOIN media_genres mg ON mg.media_id = um.media_id
+			JOIN genres g ON g.id = mg.genre_id
+			WHERE um.user_id = :userId
+			ORDER BY g.name
+			""";
 
 	private static final String COUNTS_SQL = """
 			SELECT CAST(um.status AS varchar) AS status, COUNT(*) AS total
@@ -83,13 +94,23 @@ public class UserMediaQueryRepository {
 			Integer minRating,
 			Integer maxRating,
 			String q,
+			LibrarySort sort,
+			SortDirection direction,
 			int limit,
 			long offset) {
 		MapSqlParameterSource params = bindListFilters(
 				userId, status, typeName, genreName, minRating, maxRating, q)
 				.addValue("limit", limit)
 				.addValue("offset", offset);
-		return jdbcTemplate.query(PAGE_SQL, params, (rs, rowNum) -> rs.getObject("id", UUID.class));
+		String sql = PAGE_SQL.formatted(orderBy(sort, direction));
+		return jdbcTemplate.query(sql, params, (rs, rowNum) -> rs.getObject("id", UUID.class));
+	}
+
+	public List<String> findShelfGenreNames(UUID userId) {
+		return jdbcTemplate.query(
+				SHELF_GENRES_SQL,
+				new MapSqlParameterSource("userId", userId),
+				(rs, rowNum) -> rs.getString("name"));
 	}
 
 	public UserMediaStatusCounts countByStatus(
@@ -133,5 +154,13 @@ public class UserMediaQueryRepository {
 				.addValue("minRating", minRating)
 				.addValue("maxRating", maxRating)
 				.addValue("q", q == null ? null : SqlLike.contains(q));
+	}
+
+	private static String orderBy(LibrarySort sort, SortDirection direction) {
+		String dir = direction.name();
+		return switch (sort) {
+			case ADDED -> "um.created_at " + dir + ", m.id ASC";
+			case RATING -> "um.rating " + dir + " NULLS LAST, um.created_at DESC, m.id ASC";
+		};
 	}
 }

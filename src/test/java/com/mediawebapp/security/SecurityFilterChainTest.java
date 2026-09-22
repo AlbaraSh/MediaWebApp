@@ -114,7 +114,7 @@ class SecurityFilterChainTest {
 
 	@Test
 	void protectedEndpoint_withValidToken_succeeds() throws Exception {
-		when(userMediaService.listForUser(eq(userId), any(), any(), any(), any(), any(), any(), anyInt(), anyInt()))
+		when(userMediaService.listForUser(eq(userId), any(), any(), any(), any(), any(), any(), any(), any(), anyInt(), anyInt()))
 				.thenReturn(LibraryPageResponse.of(
 						PageResponse.of(List.of(), 0, 20, 0),
 						UserMediaStatusCounts.empty()));

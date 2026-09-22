@@ -11,8 +11,12 @@ public enum SortDirection {
 	DESC;
 
 	public static SortDirection fromParam(String raw, DiscoverSort sort) {
+		return fromParam(raw, sort == DiscoverSort.TITLE ? ASC : DESC);
+	}
+
+	public static SortDirection fromParam(String raw, SortDirection whenOmitted) {
 		if (raw == null || raw.isBlank()) {
-			return sort == DiscoverSort.TITLE ? ASC : DESC;
+			return whenOmitted;
 		}
 		try {
 			return valueOf(raw.trim().toUpperCase(Locale.ROOT));

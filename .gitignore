@@ -38,3 +38,8 @@ build/
 
 # Local secrets — copy from .env.example
 .env
+
+# Frontend (Vite + React)
+frontend/node_modules
+frontend/dist
+frontend/.env

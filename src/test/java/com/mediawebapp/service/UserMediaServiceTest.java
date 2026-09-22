@@ -10,6 +10,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.mediawebapp.dto.LibraryPageResponse;
+import com.mediawebapp.dto.LibrarySort;
+import com.mediawebapp.dto.SortDirection;
 import com.mediawebapp.dto.UserMediaRequestDTO;
 import com.mediawebapp.dto.UserMediaResponseDTO;
 import com.mediawebapp.dto.UserMediaStatusCounts;
@@ -282,14 +284,15 @@ class UserMediaServiceTest {
 		when(userMediaQueryRepository.countLibrary(
 				userId, UserMediaStatus.COMPLETED, null, null, null, null, null)).thenReturn(1L);
 		when(userMediaQueryRepository.findLibraryIds(
-				userId, UserMediaStatus.COMPLETED, null, null, null, null, null, 20, 0))
+				userId, UserMediaStatus.COMPLETED, null, null, null, null, null,
+				LibrarySort.ADDED, SortDirection.DESC, 20, 0))
 				.thenReturn(List.of(entry.getId()));
 		when(userMediaRepository.findAllByIdInWithMedia(List.of(entry.getId()))).thenReturn(List.of(entry));
 		when(userMediaQueryRepository.countByStatus(userId, null, null, null))
 				.thenReturn(new UserMediaStatusCounts(0, 0, 1, 0));
 
 		LibraryPageResponse results = userMediaService.listForUser(
-				userId, null, null, null, null, null, null, 0, 20);
+				userId, null, null, null, null, null, null, null, null, 0, 20);
 
 		assertThat(results.content()).hasSize(1);
 		assertThat(results.content().get(0).mediaId()).isEqualTo(mediaId);
@@ -309,12 +312,12 @@ class UserMediaServiceTest {
 				.thenReturn(UserMediaStatusCounts.empty());
 
 		LibraryPageResponse results = userMediaService.listForUser(
-				userId, null, null, null, null, null, null, 0, 20);
+				userId, null, null, null, null, null, null, null, null, 0, 20);
 
 		assertThat(results.content()).isEmpty();
 		assertThat(results.totalElements()).isZero();
 		verify(userMediaQueryRepository, never()).findLibraryIds(
-				any(), any(), any(), any(), any(), any(), any(), anyInt(), anyInt());
+				any(), any(), any(), any(), any(), any(), any(), any(), any(), anyInt(), anyInt());
 	}
 
 	/** listForUser forwards an explicit status filter. */
@@ -324,14 +327,15 @@ class UserMediaServiceTest {
 		when(userMediaQueryRepository.countLibrary(
 				userId, UserMediaStatus.WATCHING, null, null, null, null, null)).thenReturn(1L);
 		when(userMediaQueryRepository.findLibraryIds(
-				userId, UserMediaStatus.WATCHING, null, null, null, null, null, 20, 0))
+				userId, UserMediaStatus.WATCHING, null, null, null, null, null,
+				LibrarySort.ADDED, SortDirection.DESC, 20, 0))
 				.thenReturn(List.of(entry.getId()));
 		when(userMediaRepository.findAllByIdInWithMedia(List.of(entry.getId()))).thenReturn(List.of(entry));
 		when(userMediaQueryRepository.countByStatus(userId, null, null, null))
 				.thenReturn(new UserMediaStatusCounts(0, 1, 0, 0));
 
 		LibraryPageResponse results = userMediaService.listForUser(
-				userId, UserMediaStatus.WATCHING, null, null, null, null, null, 0, 20);
+				userId, UserMediaStatus.WATCHING, null, null, null, null, null, null, null, 0, 20);
 
 		assertThat(results.content()).hasSize(1);
 		assertThat(results.content().get(0).status()).isEqualTo(UserMediaStatus.WATCHING);
@@ -366,7 +370,7 @@ class UserMediaServiceTest {
 	@Test
 	void shouldRejectMinRatingGreaterThanMaxRating() {
 		assertThatThrownBy(() -> userMediaService.listForUser(
-				userId, null, null, null, 8, 3, null, 0, 20))
+				userId, null, null, null, 8, 3, null, null, null, 0, 20))
 				.isInstanceOf(BadRequestException.class)
 				.hasMessageContaining("minRating");
 	}
