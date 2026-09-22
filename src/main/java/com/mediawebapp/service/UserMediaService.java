@@ -2,8 +2,10 @@ package com.mediawebapp.service;
 
 import com.mediawebapp.dto.CatalogType;
 import com.mediawebapp.dto.LibraryPageResponse;
+import com.mediawebapp.dto.LibrarySort;
 import com.mediawebapp.dto.PageResponse;
 import com.mediawebapp.dto.Pagination;
+import com.mediawebapp.dto.SortDirection;
 import com.mediawebapp.dto.UserMediaRequestDTO;
 import com.mediawebapp.dto.UserMediaResponseDTO;
 import com.mediawebapp.dto.UserMediaStatusCounts;
@@ -83,7 +85,8 @@ public class UserMediaService {
 
 	/**
 	 * Lists the current user's shelf as a page. Default status is COMPLETED.
-	 * Sort is fixed: created_at DESC (most recently added first), media id ASC.
+	 * Default sort is created_at DESC (most recently added first), media id ASC.
+	 * {@code sort=RATING} orders by user score; unrated rows sort last.
 	 */
 	@Transactional(readOnly = true)
 	public LibraryPageResponse listForUser(
@@ -94,11 +97,15 @@ public class UserMediaService {
 			Integer minRating,
 			Integer maxRating,
 			String q,
+			String sort,
+			String direction,
 			int page,
 			int size) {
 		Pagination.validate(page, size);
 		validateRatingBounds(minRating, maxRating);
 		UserMediaStatus effectiveStatus = status == null ? UserMediaStatus.COMPLETED : status;
+		LibrarySort librarySort = LibrarySort.fromParam(sort);
+		SortDirection sortDirection = SortDirection.fromParam(direction, SortDirection.DESC);
 		String typeName = optionalTypeName(type);
 		String genreName = GenreService.canonicalize(genre);
 		String query = trimToNull(q);
@@ -115,6 +122,8 @@ public class UserMediaService {
 						minRating,
 						maxRating,
 						query,
+						librarySort,
+						sortDirection,
 						size,
 						Pagination.offset(page, size));
 		List<UserMediaResponseDTO> content = loadEntriesInOrder(ids).stream()
@@ -123,6 +132,14 @@ public class UserMediaService {
 		UserMediaStatusCounts counts = userMediaQueryRepository.countByStatus(
 				userId, typeName, genreName, query);
 		return LibraryPageResponse.of(PageResponse.of(content, page, size, totalElements), counts);
+	}
+
+	/**
+	 * Distinct genre names on this user's shelf, all statuses.
+	 */
+	@Transactional(readOnly = true)
+	public List<String> listShelfGenres(UUID userId) {
+		return userMediaQueryRepository.findShelfGenreNames(userId);
 	}
 
 	/**

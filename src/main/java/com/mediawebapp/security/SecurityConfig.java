@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -27,6 +28,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Stateless JWT security: no HTTP sessions, no CSRF cookie token, BCrypt passwords.
@@ -46,6 +48,27 @@ public class SecurityConfig {
 	private final JsonAccessDeniedHandler accessDeniedHandler;
 	private final UserRepository userRepository;
 	private final CatalogAdminProperties catalogAdminProperties;
+
+	@Bean
+	public SearchRateLimiter searchRateLimiter() {
+		return new SearchRateLimiter();
+	}
+
+	@Bean
+	public SearchRateLimitFilter searchRateLimitFilter(
+			SearchRateLimiter searchRateLimiter,
+			JsonMapper jsonMapper) {
+		return new SearchRateLimitFilter(searchRateLimiter, jsonMapper);
+	}
+
+	@Bean
+	public FilterRegistrationBean<SearchRateLimitFilter> searchRateLimitFilterRegistration(
+			SearchRateLimitFilter searchRateLimitFilter) {
+		FilterRegistrationBean<SearchRateLimitFilter> registration =
+				new FilterRegistrationBean<>(searchRateLimitFilter);
+		registration.setEnabled(false);
+		return registration;
+	}
 
 	@Bean
 	public JwtAuthenticationFilter jwtAuthenticationFilter() {
@@ -70,7 +93,8 @@ public class SecurityConfig {
 	@Bean
 	public SecurityFilterChain securityFilterChain(
 			HttpSecurity http,
-			JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
+			JwtAuthenticationFilter jwtAuthenticationFilter,
+			SearchRateLimitFilter searchRateLimitFilter) throws Exception {
 		http
 				.csrf(AbstractHttpConfigurer::disable)
 				.cors(Customizer.withDefaults())
@@ -104,7 +128,8 @@ public class SecurityConfig {
 						.access(this::isCatalogAdmin)
 						.anyRequest()
 						.authenticated())
-				.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+				.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+				.addFilterAfter(searchRateLimitFilter, JwtAuthenticationFilter.class);
 
 		return http.build();
 	}

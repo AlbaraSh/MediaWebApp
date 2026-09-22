@@ -257,6 +257,36 @@ class LibraryQueryIntegrationTest {
 				.andExpect(status().isNoContent());
 	}
 
+	@Test
+	void library_sortByRatingDescPutsHighestFirstAndUnratedLast() throws Exception {
+		UUID low = createAndList("Low Score", movieTypeId, UserMediaStatus.COMPLETED, 4, "Action");
+		UUID high = createAndList("High Score", movieTypeId, UserMediaStatus.COMPLETED, 9, "Action");
+		UUID unrated = createAndList("Unrated", movieTypeId, UserMediaStatus.COMPLETED, null, "Action");
+
+		mockMvc.perform(get("/api/user-media")
+						.param("sort", "RATING")
+						.param("direction", "DESC")
+						.header("Authorization", bearerToken()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.content", hasSize(3)))
+				.andExpect(jsonPath("$.content[0].mediaId").value(high.toString()))
+				.andExpect(jsonPath("$.content[1].mediaId").value(low.toString()))
+				.andExpect(jsonPath("$.content[2].mediaId").value(unrated.toString()));
+	}
+
+	@Test
+	void shelfGenres_includeAllStatusesAndIgnoreCatalogOnlyTitles() throws Exception {
+		createAndList("Completed Action", movieTypeId, UserMediaStatus.COMPLETED, 8, "Action");
+		createAndList("Dropped Horror", movieTypeId, UserMediaStatus.DROPPED, 2, "Horror");
+		createMedia("Catalog Only SciFi", movieTypeId, List.of("Sci-Fi"));
+
+		mockMvc.perform(get("/api/user-media/genres").header("Authorization", bearerToken()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$", hasSize(2)))
+				.andExpect(jsonPath("$[0]").value("Action"))
+				.andExpect(jsonPath("$[1]").value("Horror"));
+	}
+
 	private UUID createAndList(
 			String title,
 			UUID typeId,

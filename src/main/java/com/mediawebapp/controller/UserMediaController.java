@@ -9,6 +9,7 @@ import com.mediawebapp.entity.UserMediaStatus;
 import com.mediawebapp.security.CurrentUserProvider;
 import com.mediawebapp.service.UserMediaService;
 import jakarta.validation.Valid;
+import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -62,11 +63,22 @@ public class UserMediaController {
 			@RequestParam(required = false) Integer minRating,
 			@RequestParam(required = false) Integer maxRating,
 			@RequestParam(required = false) String q,
+			@RequestParam(required = false) String sort,
+			@RequestParam(required = false) String direction,
 			@RequestParam(defaultValue = "" + Pagination.DEFAULT_PAGE) int page,
 			@RequestParam(defaultValue = "" + Pagination.DEFAULT_SIZE) int size) {
 		UUID userId = currentUserProvider.getCurrentUserId();
 		return ResponseEntity.ok(userMediaService.listForUser(
-				userId, status, type, genre, minRating, maxRating, q, page, size));
+				userId, status, type, genre, minRating, maxRating, q, sort, direction, page, size));
+	}
+
+	/**
+	 * Distinct genre names on the current user's shelf (all statuses).
+	 */
+	@GetMapping("/genres")
+	public ResponseEntity<List<String>> listShelfGenres() {
+		UUID userId = currentUserProvider.getCurrentUserId();
+		return ResponseEntity.ok(userMediaService.listShelfGenres(userId));
 	}
 
 	/**

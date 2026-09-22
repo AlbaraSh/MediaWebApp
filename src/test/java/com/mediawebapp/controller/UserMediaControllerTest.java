@@ -151,7 +151,7 @@ class UserMediaControllerTest {
 	@Test
 	void getUserMedia_returns200AndPageEnvelope() throws Exception {
 		when(userMediaService.listForUser(
-				eq(userId), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), eq(0), eq(20)))
+				eq(userId), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), eq(0), eq(20)))
 				.thenReturn(samplePage(List.of(sampleResponse())));
 
 		mockMvc.perform(get("/api/user-media"))
@@ -166,14 +166,14 @@ class UserMediaControllerTest {
 				.andExpect(jsonPath("$.counts.completed").value(0));
 
 		verify(userMediaService).listForUser(
-				eq(userId), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), eq(0), eq(20));
+				eq(userId), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), eq(0), eq(20));
 	}
 
 	/** GET /api/user-media returns 200 with an empty page when the user has no matching entries. */
 	@Test
 	void getUserMedia_returns200AndEmptyPage() throws Exception {
 		when(userMediaService.listForUser(
-				eq(userId), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), eq(0), eq(20)))
+				eq(userId), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), eq(0), eq(20)))
 				.thenReturn(samplePage(List.of()));
 
 		mockMvc.perform(get("/api/user-media"))
@@ -188,7 +188,7 @@ class UserMediaControllerTest {
 	@Test
 	void getUserMedia_forwardsStatusFilter() throws Exception {
 		when(userMediaService.listForUser(
-				eq(userId), eq(UserMediaStatus.COMPLETED), isNull(), isNull(), isNull(), isNull(), isNull(), eq(0), eq(20)))
+				eq(userId), eq(UserMediaStatus.COMPLETED), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), eq(0), eq(20)))
 				.thenReturn(samplePage(List.of(sampleResponse())));
 
 		mockMvc.perform(get("/api/user-media").param("status", "COMPLETED"))
@@ -203,8 +203,37 @@ class UserMediaControllerTest {
 				isNull(),
 				isNull(),
 				isNull(),
+				isNull(),
+				isNull(),
 				eq(0),
 				eq(20));
+	}
+
+	@Test
+	void getUserMedia_forwardsRatingSort() throws Exception {
+		when(userMediaService.listForUser(
+				eq(userId), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(),
+				eq("RATING"), eq("ASC"), eq(0), eq(20)))
+				.thenReturn(samplePage(List.of(sampleResponse())));
+
+		mockMvc.perform(get("/api/user-media").param("sort", "RATING").param("direction", "ASC"))
+				.andExpect(status().isOk());
+
+		verify(userMediaService).listForUser(
+				eq(userId), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(),
+				eq("RATING"), eq("ASC"), eq(0), eq(20));
+	}
+
+	@Test
+	void listShelfGenres_returns200() throws Exception {
+		when(userMediaService.listShelfGenres(userId)).thenReturn(List.of("Action", "Drama"));
+
+		mockMvc.perform(get("/api/user-media/genres"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[0]").value("Action"))
+				.andExpect(jsonPath("$[1]").value("Drama"));
+
+		verify(userMediaService).listShelfGenres(userId);
 	}
 
 	/** GET /api/user-media/{mediaId} returns 200 and the current user's shelf row. */
@@ -243,7 +272,7 @@ class UserMediaControllerTest {
 				.andExpect(jsonPath("$.error").value("Invalid value for parameter 'status'"))
 				.andExpect(jsonPath("$.status").value(400));
 
-		verify(userMediaService, never()).listForUser(any(), any(), any(), any(), any(), any(), any(), anyInt(), anyInt());
+		verify(userMediaService, never()).listForUser(any(), any(), any(), any(), any(), any(), any(), any(), any(), anyInt(), anyInt());
 	}
 
 	/** DELETE /api/user-media/{mediaId} returns 204 when the entry is removed. */
