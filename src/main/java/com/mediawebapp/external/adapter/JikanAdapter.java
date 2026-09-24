@@ -52,6 +52,30 @@ public class JikanAdapter {
 		}
 	}
 
+	public JikanSearchResponse listTopAnime(int page) {
+		try {
+			JikanSearchResponse body = restClient.get()
+					.uri(uriBuilder -> uriBuilder
+							.path("/top/anime")
+							.queryParam("page", page)
+							.queryParam("limit", 25)
+							.build())
+					.retrieve()
+					.onStatus(JikanAdapter::isRetryableStatus, (request, response) -> {
+						throw new ExternalProviderException(PROVIDER_UNAVAILABLE, true);
+					})
+					.onStatus(HttpStatusCode::isError, (request, response) -> {
+						throw new ExternalProviderException(PROVIDER_UNAVAILABLE, false);
+					})
+					.body(JikanSearchResponse.class);
+			return body != null ? body : new JikanSearchResponse(null);
+		} catch (ExternalProviderException exception) {
+			throw exception;
+		} catch (RestClientException exception) {
+			throw new ExternalProviderException(PROVIDER_UNAVAILABLE, true);
+		}
+	}
+
 	public JikanAnimeDetailsResponse getAnime(String malId) {
 		try {
 			JikanAnimeDetailsResponse body = restClient.get()

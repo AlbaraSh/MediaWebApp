@@ -199,6 +199,12 @@ class SecurityFilterChainTest {
 	}
 
 	@Test
+	void spaRoute_withoutToken_isNotUnauthorized() throws Exception {
+		mockMvc.perform(get("/discover"))
+				.andExpect(status().isNotFound());
+	}
+
+	@Test
 	void mediaRead_withoutToken_succeeds() throws Exception {
 		when(mediaService.discover(any(), any(), any(), any(), any(), any(), any(), anyInt(), anyInt()))
 				.thenReturn(PageResponse.of(List.of(), 0, 20, 0));

@@ -23,7 +23,8 @@ import org.springframework.web.client.RestClient;
 		TmdbProperties.class,
 		RawgProperties.class,
 		JikanProperties.class,
-		OpenAiProperties.class
+		OpenAiProperties.class,
+		CatalogSeedProperties.class
 })
 public class ExternalApiConfig {
 

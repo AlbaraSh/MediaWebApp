@@ -80,6 +80,54 @@ public class TmdbAdapter {
 		}
 	}
 
+	public TmdbMovieSearchResponse listTopRatedMovies(int page) {
+		try {
+			TmdbMovieSearchResponse body = restClient.get()
+					.uri(uriBuilder -> uriBuilder
+							.path("/movie/top_rated")
+							.queryParam("page", page)
+							.queryParam("api_key", apiKey)
+							.build())
+					.retrieve()
+					.onStatus(TmdbAdapter::isRetryableStatus, (request, response) -> {
+						throw new ExternalProviderException(PROVIDER_UNAVAILABLE, true);
+					})
+					.onStatus(HttpStatusCode::isError, (request, response) -> {
+						throw new ExternalProviderException(PROVIDER_UNAVAILABLE, false);
+					})
+					.body(TmdbMovieSearchResponse.class);
+			return body != null ? body : new TmdbMovieSearchResponse(null);
+		} catch (ExternalProviderException exception) {
+			throw exception;
+		} catch (RestClientException exception) {
+			throw new ExternalProviderException(PROVIDER_UNAVAILABLE, true);
+		}
+	}
+
+	public TmdbTvSearchResponse listTopRatedTv(int page) {
+		try {
+			TmdbTvSearchResponse body = restClient.get()
+					.uri(uriBuilder -> uriBuilder
+							.path("/tv/top_rated")
+							.queryParam("page", page)
+							.queryParam("api_key", apiKey)
+							.build())
+					.retrieve()
+					.onStatus(TmdbAdapter::isRetryableStatus, (request, response) -> {
+						throw new ExternalProviderException(PROVIDER_UNAVAILABLE, true);
+					})
+					.onStatus(HttpStatusCode::isError, (request, response) -> {
+						throw new ExternalProviderException(PROVIDER_UNAVAILABLE, false);
+					})
+					.body(TmdbTvSearchResponse.class);
+			return body != null ? body : new TmdbTvSearchResponse(null);
+		} catch (ExternalProviderException exception) {
+			throw exception;
+		} catch (RestClientException exception) {
+			throw new ExternalProviderException(PROVIDER_UNAVAILABLE, true);
+		}
+	}
+
 	public TmdbMovie getMovie(String tmdbId) {
 		try {
 			TmdbMovie body = restClient.get()

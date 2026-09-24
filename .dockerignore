@@ -1,0 +1,13 @@
+.git
+.github
+.cursor
+.idea
+.target
+target
+frontend/node_modules
+frontend/dist
+frontend/.env
+.env
+*.iml
+HELP.md
+agent-transcripts
