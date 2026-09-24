@@ -3,6 +3,7 @@ package com.mediawebapp.security;
 import com.mediawebapp.config.CatalogAdminProperties;
 import com.mediawebapp.config.CorsProperties;
 import com.mediawebapp.repository.UserRepository;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
@@ -34,8 +35,8 @@ import tools.jackson.databind.json.JsonMapper;
  * Stateless JWT security: no HTTP sessions, no CSRF cookie token, BCrypt passwords.
  * <p>
  * Public: register/login, catalog reads, catalog genre names, similar-media discovery,
- * and actuator health. Catalog writes except import are limited to the configured
- * catalog-admin user. Everything else requires a valid Bearer token.
+ * actuator health, and GET of the SPA/static UI. Catalog writes except import are limited
+ * to the configured catalog-admin user. Everything else requires a valid Bearer token.
  */
 @Configuration
 @EnableWebSecurity
@@ -116,6 +117,8 @@ public class SecurityConfig {
 						.permitAll()
 						.requestMatchers("/actuator/health", "/actuator/health/**")
 						.permitAll()
+						.requestMatchers(this::isPublicUiGet)
+						.permitAll()
 						.requestMatchers("/api/user-media/**")
 						.authenticated()
 						.requestMatchers(HttpMethod.POST, "/api/media/import")
@@ -132,6 +135,21 @@ public class SecurityConfig {
 				.addFilterAfter(searchRateLimitFilter, JwtAuthenticationFilter.class);
 
 		return http.build();
+	}
+
+	private boolean isPublicUiGet(HttpServletRequest request) {
+		if (!HttpMethod.GET.matches(request.getMethod())) {
+			return false;
+		}
+		String path = request.getRequestURI();
+		String contextPath = request.getContextPath();
+		if (path != null && contextPath != null && !contextPath.isEmpty() && path.startsWith(contextPath)) {
+			path = path.substring(contextPath.length());
+		}
+		if (path == null || path.isBlank()) {
+			path = request.getServletPath();
+		}
+		return path != null && !path.startsWith("/api");
 	}
 
 	private AuthorizationDecision isCatalogAdmin(
