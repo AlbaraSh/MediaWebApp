@@ -54,6 +54,33 @@ public class RawgAdapter {
 		}
 	}
 
+	public RawgSearchResponse listTopGames(int page) {
+		try {
+			RawgSearchResponse body = restClient.get()
+					.uri(uriBuilder -> uriBuilder
+							.path("/games")
+							.queryParam("ordering", "-metacritic")
+							.queryParam("exclude_additions", true)
+							.queryParam("page_size", 40)
+							.queryParam("page", page)
+							.queryParam("key", apiKey)
+							.build())
+					.retrieve()
+					.onStatus(RawgAdapter::isRetryableStatus, (request, response) -> {
+						throw new ExternalProviderException(PROVIDER_UNAVAILABLE, true);
+					})
+					.onStatus(HttpStatusCode::isError, (request, response) -> {
+						throw new ExternalProviderException(PROVIDER_UNAVAILABLE, false);
+					})
+					.body(RawgSearchResponse.class);
+			return body != null ? body : new RawgSearchResponse(null);
+		} catch (ExternalProviderException exception) {
+			throw exception;
+		} catch (RestClientException exception) {
+			throw new ExternalProviderException(PROVIDER_UNAVAILABLE, true);
+		}
+	}
+
 	public RawgGame getGame(String rawgId) {
 		try {
 			RawgGame body = restClient.get()
