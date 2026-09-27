@@ -377,14 +377,14 @@ docker build -t mediawebapp .
 docker run --env-file .env -p 8080:8080 mediawebapp
 ```
 
-Production app config is `fly.toml` (`myshelf`, region `lhr`). The app listens on 8080 inside the machine, forces HTTPS, and keeps one machine running. CORS is locked to `https://myshelf.fly.dev`. Catalog seed runs on startup.
+Production app config is `fly.toml` (`myshelf-app`, region `lhr`). The app listens on 8080 inside the machine, forces HTTPS, and keeps one machine running. CORS is locked to `https://myshelf-app.fly.dev`. Catalog seed runs on startup.
 
 PostgreSQL is a separate Fly Postgres Flex 17 image (`docker/postgres`) with pgvector 0.8.1 compiled in. Its app config is `docker/postgres/fly.toml`.
 
 Deploy from CI uses `flyctl deploy --remote-only`. Locally, with a Fly token:
 
 ```bash
-flyctl deploy --remote-only --app myshelf
+flyctl deploy --remote-only --app myshelf-app
 ```
 
 Set `JWT_SECRET`, `TMDB_API_KEY`, `RAWG_API_KEY`, `OPENAI_API_KEY`, and the database URL as Fly secrets. Do not commit them.

@@ -13,13 +13,28 @@ public class SearchRateLimiter {
 	static final int DAILY_LIMIT = 300;
 	static final long DAILY_WINDOW_MS = 86_400_000L;
 
+	private final int burstLimit;
+	private final long burstWindowMs;
+	private final int dailyLimit;
+	private final long dailyWindowMs;
 	private final ConcurrentHashMap<String, Window> burst = new ConcurrentHashMap<>();
 	private final ConcurrentHashMap<String, Window> daily = new ConcurrentHashMap<>();
 
+	public SearchRateLimiter() {
+		this(BURST_LIMIT, BURST_WINDOW_MS, DAILY_LIMIT, DAILY_WINDOW_MS);
+	}
+
+	protected SearchRateLimiter(int burstLimit, long burstWindowMs, int dailyLimit, long dailyWindowMs) {
+		this.burstLimit = burstLimit;
+		this.burstWindowMs = burstWindowMs;
+		this.dailyLimit = dailyLimit;
+		this.dailyWindowMs = dailyWindowMs;
+	}
+
 	public boolean tryAcquire(String key) {
 		long now = System.currentTimeMillis();
-		return allow(burst, key, now, BURST_LIMIT, BURST_WINDOW_MS)
-				&& allow(daily, key, now, DAILY_LIMIT, DAILY_WINDOW_MS);
+		return allow(burst, key, now, burstLimit, burstWindowMs)
+				&& allow(daily, key, now, dailyLimit, dailyWindowMs);
 	}
 
 	private static boolean allow(
