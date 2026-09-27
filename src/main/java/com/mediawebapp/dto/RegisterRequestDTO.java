@@ -4,11 +4,7 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-/**
- * Incoming payload for {@code POST /api/auth/register}.
- * <p>
- * {@code username} is a unique display name only — login uses email + password.
- */
+/** {@code username} is a display name. Login uses email and password. */
 public record RegisterRequestDTO(
 
 		@NotBlank(message = "Email is required")

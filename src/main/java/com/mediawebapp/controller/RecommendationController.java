@@ -12,9 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * Similar-media discovery and personalized recommendations.
- */
+/** Similar titles are public. Personalized results require a signed-in user. */
 @RestController
 @RequestMapping("/api/recommendations")
 @RequiredArgsConstructor

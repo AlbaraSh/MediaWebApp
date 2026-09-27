@@ -12,10 +12,7 @@ import java.util.UUID;
  */
 public interface CurrentUserProvider {
 
-	/**
-	 * @return the current user's primary key
-	 * @throws IllegalStateException if SecurityContext has no {@code AuthenticatedUser}
-	 */
+	/** @throws IllegalStateException when the request has no authenticated user */
 	UUID getCurrentUserId();
 
 	/**

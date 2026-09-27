@@ -63,6 +63,7 @@ public class MediaService {
 		}
 
 		Media savedMedia = mediaRepository.saveAndFlush(media);
+		// created_at / updated_at are database-owned, so reload them before mapping.
 		entityManager.refresh(savedMedia);
 
 		savedMedia.getGenres().addAll(genreService.resolveAll(requestDTO.genres()));
@@ -137,6 +138,7 @@ public class MediaService {
 						Pagination.offset(page, size));
 		List<Media> media = loadMediaInOrder(ids);
 		Set<UUID> inLibrary = libraryMediaIds(currentUserId, ids);
+		// Guests get null so the client can omit shelf state. Signed-in users get true or false.
 		boolean anonymous = currentUserId == null || currentUserId.isEmpty();
 		List<MediaResponseDTO> content = media.stream()
 				.map(item -> mediaMapper.toResponseDto(
@@ -155,6 +157,7 @@ public class MediaService {
 		return mediaMapper.toResponseDto(media);
 	}
 
+	/** {@code IN} does not preserve the SQL sort order, so rows are reassembled from the id list. */
 	private List<Media> loadMediaInOrder(List<UUID> ids) {
 		if (ids.isEmpty()) {
 			return List.of();

@@ -56,6 +56,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 		try {
 			AuthenticatedUser parsed = jwtService.parseToken(token);
 			User user = userRepository.findById(parsed.userId()).orElse(null);
+			// Logout increments token_version, which rejects every token issued before it.
 			if (user == null || user.getTokenVersion() != parsed.tokenVersion()) {
 				reject(request, response, new BadCredentialsException("Invalid or expired JWT"));
 				return;

@@ -8,10 +8,6 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.util.UUID;
 
-/**
- * Incoming payload for creating or updating a personal media list entry
- * via {@code POST /api/user-media}.
- */
 public record UserMediaRequestDTO(
 
 		@NotNull(message = "Media id is required")

@@ -13,18 +13,11 @@ import javax.crypto.SecretKey;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-/**
- * Creates and verifies JWTs used as the API's bearer tokens.
- * <p>
- * Tokens carry {@code userId} (subject + claim) and {@code email}, are signed
- * with HS256, and expire after 24 hours. The signing secret is injected from
- * {@link JwtProperties} ({@code jwt.secret}).
- */
+/** HS256 bearer tokens. Claims are user id, email, and {@code ver} (token version). Lifetime is 24 hours. */
 @Component
 @RequiredArgsConstructor
 public class JwtService {
 
-	/** Token lifetime required by the auth spec. */
 	private static final Duration TOKEN_TTL = Duration.ofHours(24);
 
 	/** HS256 needs at least 256 bits (32 bytes) of key material. */
@@ -42,20 +35,10 @@ public class JwtService {
 		}
 	}
 
-	/**
-	 * Builds a signed token for the given user.
-	 *
-	 * @param userId account primary key (UUID, same type as {@code users.id})
-	 * @param email  included as a claim so callers can display identity without a DB hit
-	 * @return compact JWT string
-	 */
 	public String generateToken(UUID userId, String email) {
 		return generateToken(userId, email, 0);
 	}
 
-	/**
-	 * Builds a signed token that is bound to the user's current {@code token_version}.
-	 */
 	public String generateToken(UUID userId, String email, int tokenVersion) {
 		Instant now = Instant.now();
 		return Jwts.builder()
@@ -69,13 +52,6 @@ public class JwtService {
 				.compact();
 	}
 
-	/**
-	 * Verifies signature and expiry, then reads identity claims.
-	 *
-	 * @param token compact JWT from the {@code Authorization} header
-	 * @return user id and email from the payload
-	 * @throws io.jsonwebtoken.JwtException if the token is invalid or expired
-	 */
 	public AuthenticatedUser parseToken(String token) {
 		Claims claims = Jwts.parser()
 				.verifyWith(signingKey())
@@ -86,6 +62,7 @@ public class JwtService {
 		UUID userId = UUID.fromString(claims.getSubject());
 		String email = claims.get("email", String.class);
 		Number versionClaim = claims.get("ver", Number.class);
+		// Older tokens have no ver claim and match token_version 0.
 		int tokenVersion = versionClaim == null ? 0 : versionClaim.intValue();
 		return new AuthenticatedUser(userId, email, tokenVersion);
 	}

@@ -61,7 +61,6 @@ class UserMediaControllerTest {
 		when(currentUserProvider.getCurrentUserId()).thenReturn(userId);
 	}
 
-	/** POST /api/user-media returns 201 and body when the service creates a new entry. */
 	@Test
 	void upsert_returns201WhenCreated() throws Exception {
 		when(userMediaService.upsert(eq(userId), any()))
@@ -92,7 +91,6 @@ class UserMediaControllerTest {
 		verify(userMediaService).upsert(eq(userId), any());
 	}
 
-	/** POST /api/user-media returns 200 when the service updates an existing entry. */
 	@Test
 	void upsert_returns200WhenUpdated() throws Exception {
 		when(userMediaService.upsert(eq(userId), any()))
@@ -113,7 +111,6 @@ class UserMediaControllerTest {
 				.andExpect(jsonPath("$.mediaId").value(mediaId.toString()));
 	}
 
-	/** POST with only required fields (mediaId + status) is accepted; rating/review optional. */
 	@Test
 	void upsert_returns201WhenRatingAndReviewOmitted() throws Exception {
 		UserMediaResponseDTO response = new UserMediaResponseDTO(
@@ -147,7 +144,6 @@ class UserMediaControllerTest {
 				.andExpect(jsonPath("$.review").value(nullValue()));
 	}
 
-	/** GET /api/user-media returns 200 and a page of the current user's list. */
 	@Test
 	void getUserMedia_returns200AndPageEnvelope() throws Exception {
 		when(userMediaService.listForUser(
@@ -169,7 +165,6 @@ class UserMediaControllerTest {
 				eq(userId), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), eq(0), eq(20));
 	}
 
-	/** GET /api/user-media returns 200 with an empty page when the user has no matching entries. */
 	@Test
 	void getUserMedia_returns200AndEmptyPage() throws Exception {
 		when(userMediaService.listForUser(
@@ -184,7 +179,6 @@ class UserMediaControllerTest {
 				.andExpect(jsonPath("$.counts.planned").value(0));
 	}
 
-	/** GET /api/user-media?status=COMPLETED forwards the status into listForUser. */
 	@Test
 	void getUserMedia_forwardsStatusFilter() throws Exception {
 		when(userMediaService.listForUser(
@@ -236,7 +230,6 @@ class UserMediaControllerTest {
 		verify(userMediaService).listShelfGenres(userId);
 	}
 
-	/** GET /api/user-media/{mediaId} returns 200 and the current user's shelf row. */
 	@Test
 	void getByMediaId_returns200WhenListed() throws Exception {
 		when(userMediaService.getForUser(userId, mediaId)).thenReturn(sampleResponse());
@@ -251,7 +244,6 @@ class UserMediaControllerTest {
 		verify(userMediaService).getForUser(userId, mediaId);
 	}
 
-	/** GET /api/user-media/{mediaId} returns 404 when the current user has no row for that media. */
 	@Test
 	void getByMediaId_returns404WhenNotListed() throws Exception {
 		when(userMediaService.getForUser(userId, mediaId))
@@ -264,7 +256,6 @@ class UserMediaControllerTest {
 				.andExpect(jsonPath("$.status").value(404));
 	}
 
-	/** GET with an unknown status query value is rejected (enum binding failure). */
 	@Test
 	void getUserMedia_returns400WhenStatusQueryInvalid() throws Exception {
 		mockMvc.perform(get("/api/user-media").param("status", "BINGEING"))
@@ -275,7 +266,6 @@ class UserMediaControllerTest {
 		verify(userMediaService, never()).listForUser(any(), any(), any(), any(), any(), any(), any(), any(), any(), anyInt(), anyInt());
 	}
 
-	/** DELETE /api/user-media/{mediaId} returns 204 when the entry is removed. */
 	@Test
 	void delete_returns204WhenSuccessful() throws Exception {
 		mockMvc.perform(delete("/api/user-media/{mediaId}", mediaId))
@@ -284,7 +274,6 @@ class UserMediaControllerTest {
 		verify(userMediaService).deleteForUser(userId, mediaId);
 	}
 
-	/** DELETE returns 404 with the API error body when the entry is missing. */
 	@Test
 	void delete_returns404WhenNotFound() throws Exception {
 		doThrow(new ResourceNotFoundException("User media entry not found for media id: " + mediaId))
@@ -296,7 +285,6 @@ class UserMediaControllerTest {
 				.andExpect(jsonPath("$.status").value(404));
 	}
 
-	/** POST with rating above 10 returns 400 validation error on rating. */
 	@Test
 	void upsert_returns400WhenRatingTooHigh() throws Exception {
 		String body = """
@@ -318,7 +306,6 @@ class UserMediaControllerTest {
 		verify(userMediaService, never()).upsert(any(), any());
 	}
 
-	/** POST with rating below 1 returns 400 validation error on rating. */
 	@Test
 	void upsert_returns400WhenRatingTooLow() throws Exception {
 		String body = """
@@ -339,7 +326,6 @@ class UserMediaControllerTest {
 		verify(userMediaService, never()).upsert(any(), any());
 	}
 
-	/** POST with a status not in the allowed set returns 400 on status. */
 	@Test
 	void upsert_returns400WhenStatusInvalid() throws Exception {
 		String body = """
@@ -361,7 +347,6 @@ class UserMediaControllerTest {
 		verify(userMediaService, never()).upsert(any(), any());
 	}
 
-	/** POST without status returns 400 validation error on status. */
 	@Test
 	void upsert_returns400WhenStatusMissing() throws Exception {
 		String body = """
@@ -401,7 +386,6 @@ class UserMediaControllerTest {
 		verify(userMediaService, never()).upsert(any(), any());
 	}
 
-	/** POST without mediaId returns 400 validation error on mediaId. */
 	@Test
 	void upsert_returns400WhenMediaIdMissing() throws Exception {
 		String body = """
@@ -420,7 +404,6 @@ class UserMediaControllerTest {
 		verify(userMediaService, never()).upsert(any(), any());
 	}
 
-	/** POST returns 404 when the referenced catalog media does not exist. */
 	@Test
 	void upsert_returns404WhenMediaMissing() throws Exception {
 		when(userMediaService.upsert(eq(userId), any()))

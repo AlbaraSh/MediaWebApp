@@ -67,6 +67,8 @@ public class SecurityConfig {
 			SearchRateLimitFilter searchRateLimitFilter) {
 		FilterRegistrationBean<SearchRateLimitFilter> registration =
 				new FilterRegistrationBean<>(searchRateLimitFilter);
+		// The filter is added on the security chain below. This stops Spring Boot
+		// from also registering it as a servlet filter.
 		registration.setEnabled(false);
 		return registration;
 	}

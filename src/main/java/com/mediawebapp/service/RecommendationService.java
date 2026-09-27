@@ -106,6 +106,7 @@ public class RecommendationService {
 			double similarity = row.similarity() == null ? 0 : row.similarity();
 			double quality = RecommendationScoring.bayesianQuality(
 					row.externalRating(), row.externalRatingCount(), globalAverage);
+			// No highly rated history for this type: genre weight folds into similarity.
 			Double genreAffinity = hasTypeHistory
 					? RecommendationScoring.genreAffinity(
 							likedGenres, genresByMediaId.getOrDefault(row.mediaId(), Set.of()))
@@ -123,6 +124,7 @@ public class RecommendationService {
 		return scored.stream().limit(take).map(ScoredItem::item).toList();
 	}
 
+	/** No titles rated 7 or higher. Rank each type by Bayesian quality instead of a taste vector. */
 	private RecommendationResponseDTO fallback(UUID userId, CatalogType requestedType, double globalAverage) {
 		Map<CatalogType, List<RecommendationItemDTO>> grouped = new EnumMap<>(CatalogType.class);
 		for (CatalogType catalogType : CatalogType.values()) {

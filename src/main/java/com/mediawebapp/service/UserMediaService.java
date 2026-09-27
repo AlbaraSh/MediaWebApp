@@ -31,13 +31,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Application service for a user's personal media list (status, rating, review).
- * <p>
- * Operates only on user-specific state; the global media catalog is referenced,
- * never duplicated. Caller supplies {@code userId} — this class never resolves
- * identity.
- */
+/** Shelf state for one user. The catalog row is referenced, not copied. Identity is passed in. */
 @Service
 @RequiredArgsConstructor
 public class UserMediaService {
@@ -49,14 +43,8 @@ public class UserMediaService {
 	private final EntityManager entityManager;
 
 	/**
-	 * Creates or updates the list entry for {@code (userId, mediaId)}.
-	 * <p>
-	 * Primary logic is find-then-update-or-create. A unique-constraint race is
-	 * handled by reloading and updating so the DB constraint stays a safety net.
-	 *
-	 * @param userId     owner of the list (from CurrentUserProvider via controller)
-	 * @param requestDTO validated upsert payload
-	 * @return response body plus whether the row was newly created
+	 * Find-then-insert. If two requests insert the same pair, the loser reloads
+	 * and updates so the unique constraint stays a safety net.
 	 */
 	@Transactional
 	public UserMediaUpsertResult upsert(UUID userId, UserMediaRequestDTO requestDTO) {
@@ -134,19 +122,11 @@ public class UserMediaService {
 		return LibraryPageResponse.of(PageResponse.of(content, page, size, totalElements), counts);
 	}
 
-	/**
-	 * Distinct genre names on this user's shelf, all statuses.
-	 */
 	@Transactional(readOnly = true)
 	public List<String> listShelfGenres(UUID userId) {
 		return userMediaQueryRepository.findShelfGenreNames(userId);
 	}
 
-	/**
-	 * Returns the current user's shelf row for {@code mediaId}.
-	 *
-	 * @throws ResourceNotFoundException if no such entry exists
-	 */
 	@Transactional(readOnly = true)
 	public UserMediaResponseDTO getForUser(UUID userId, UUID mediaId) {
 		UserMedia entry = userMediaRepository
@@ -156,11 +136,6 @@ public class UserMediaService {
 		return userMediaMapper.toResponseDto(entry);
 	}
 
-	/**
-	 * Removes the entry for {@code (userId, mediaId)}.
-	 *
-	 * @throws ResourceNotFoundException if no such entry exists
-	 */
 	@Transactional
 	public void deleteForUser(UUID userId, UUID mediaId) {
 		if (!userMediaRepository.existsByUserIdAndMedia_Id(userId, mediaId)) {

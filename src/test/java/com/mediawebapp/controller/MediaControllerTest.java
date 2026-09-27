@@ -61,7 +61,6 @@ class MediaControllerTest {
 		when(currentUserProvider.getCurrentUserIdIfPresent()).thenReturn(Optional.empty());
 	}
 
-	/** POST /api/media with a valid body returns 201 and the created media JSON. */
 	@Test
 	void createMedia_returns201AndResponseBody() throws Exception {
 		when(mediaService.createMedia(any())).thenReturn(sampleResponse("The Matrix", (short) 1999));
@@ -94,7 +93,6 @@ class MediaControllerTest {
 				.andExpect(jsonPath("$.ratingLastUpdatedAt").doesNotExist());
 	}
 
-	/** POST /api/media accepts optional genres, rating, and ratingCount used by the import-parity create path. */
 	@Test
 	void createMedia_acceptsOptionalGenresAndRating() throws Exception {
 		when(mediaService.createMedia(any())).thenReturn(new MediaResponseDTO(
@@ -163,7 +161,6 @@ class MediaControllerTest {
 				.isEqualTo("https://image.tmdb.org/t/p/w500/f89U3ADr1oiB1s9GkdPOEpCl.jpg");
 	}
 
-	/** GET /api/media returns 200 and a page envelope of media items. */
 	@Test
 	void getAllMedia_returns200AndPageEnvelope() throws Exception {
 		when(mediaService.discover(any(), any(), any(), any(), any(), any(), any(), anyInt(), anyInt()))
@@ -181,7 +178,6 @@ class MediaControllerTest {
 				.andExpect(jsonPath("$.totalPages").value(1));
 	}
 
-	/** GET /api/media returns 200 with an empty page when the catalog is empty. */
 	@Test
 	void getAllMedia_returns200AndEmptyPage() throws Exception {
 		when(mediaService.discover(any(), any(), any(), any(), any(), any(), any(), anyInt(), anyInt()))
@@ -249,7 +245,6 @@ class MediaControllerTest {
 				.andExpect(jsonPath("$.status").value(400));
 	}
 
-	/** GET /api/media/{id} returns 200 and the media JSON when the id exists. */
 	@Test
 	void getMediaById_returns200() throws Exception {
 		when(mediaService.getMediaById(mediaId)).thenReturn(sampleResponse("The Matrix", (short) 1999));
@@ -261,7 +256,6 @@ class MediaControllerTest {
 				.andExpect(jsonPath("$.mediaType.id").value(mediaTypeId.toString()));
 	}
 
-	/** GET /api/media/{id} returns 404 with the API error body when the media is missing. */
 	@Test
 	void getMediaById_returns404WhenNotFound() throws Exception {
 		when(mediaService.getMediaById(mediaId))
@@ -273,7 +267,6 @@ class MediaControllerTest {
 				.andExpect(jsonPath("$.status").value(404));
 	}
 
-	/** GET /api/media/{id} with a non-UUID path value is rejected by argument binding. */
 	@Test
 	void getMediaById_returns400WhenIdNotUuid() throws Exception {
 		mockMvc.perform(get("/api/media/{id}", "not-a-uuid"))
@@ -296,7 +289,6 @@ class MediaControllerTest {
 		verify(mediaService, never()).createMedia(any());
 	}
 
-	/** POST with optional description/releaseYear omitted returns 201. */
 	@Test
 	void createMedia_returns201WhenOptionalFieldsOmitted() throws Exception {
 		MediaResponseDTO response = new MediaResponseDTO(
@@ -330,7 +322,6 @@ class MediaControllerTest {
 				.andExpect(jsonPath("$.releaseYear").value(nullValue()));
 	}
 
-	/** POST returns 404 when the referenced media type does not exist. */
 	@Test
 	void createMedia_returns404WhenMediaTypeMissing() throws Exception {
 		when(mediaService.createMedia(any()))
@@ -352,7 +343,6 @@ class MediaControllerTest {
 				.andExpect(jsonPath("$.status").value(404));
 	}
 
-	/** POST /api/media with a blank title returns 400 validation error on title. */
 	@Test
 	void createMedia_returns400WhenTitleBlank() throws Exception {
 		String requestBody = """
@@ -375,7 +365,6 @@ class MediaControllerTest {
 		verify(mediaService, never()).createMedia(any());
 	}
 
-	/** POST with whitespace-only title fails @NotBlank validation. */
 	@Test
 	void createMedia_returns400WhenTitleWhitespaceOnly() throws Exception {
 		String requestBody = """
@@ -395,7 +384,6 @@ class MediaControllerTest {
 		verify(mediaService, never()).createMedia(any());
 	}
 
-	/** POST without title returns 400 validation error on title. */
 	@Test
 	void createMedia_returns400WhenTitleMissing() throws Exception {
 		String requestBody = """
@@ -416,7 +404,6 @@ class MediaControllerTest {
 		verify(mediaService, never()).createMedia(any());
 	}
 
-	/** POST with title longer than 500 characters returns 400 on title. */
 	@Test
 	void createMedia_returns400WhenTitleTooLong() throws Exception {
 		String requestBody = """
@@ -436,7 +423,6 @@ class MediaControllerTest {
 		verify(mediaService, never()).createMedia(any());
 	}
 
-	/** POST /api/media with releaseYear below the allowed range returns 400 on releaseYear. */
 	@Test
 	void createMedia_returns400WhenReleaseYearTooLow() throws Exception {
 		String requestBody = """
@@ -459,7 +445,6 @@ class MediaControllerTest {
 		verify(mediaService, never()).createMedia(any());
 	}
 
-	/** POST with releaseYear above 2100 returns 400 on releaseYear. */
 	@Test
 	void createMedia_returns400WhenReleaseYearTooHigh() throws Exception {
 		String requestBody = """
@@ -480,7 +465,6 @@ class MediaControllerTest {
 		verify(mediaService, never()).createMedia(any());
 	}
 
-	/** POST /api/media without mediaTypeId returns 400 validation error on mediaTypeId. */
 	@Test
 	void createMedia_returns400WhenMediaTypeIdMissing() throws Exception {
 		String requestBody = """

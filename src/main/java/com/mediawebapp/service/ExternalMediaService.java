@@ -113,6 +113,7 @@ public class ExternalMediaService {
 		try {
 			return transactionTemplate.execute(status -> completeImport(source, storedExternalId, dto));
 		} catch (DataIntegrityViolationException exception) {
+			// A concurrent import won the unique (source, external_id) constraint.
 			return new ImportMediaResult(loadExisting(source, storedExternalId), false);
 		}
 	}
@@ -139,6 +140,7 @@ public class ExternalMediaService {
 		);
 		MediaResponseDTO created = mediaService.createMedia(createRequest);
 
+		// Attach the mapping by id. The catalog row was just inserted.
 		Media mediaReference = new Media();
 		mediaReference.setId(created.id());
 

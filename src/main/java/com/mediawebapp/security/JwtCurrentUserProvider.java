@@ -6,13 +6,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
-/**
- * Resolves the current user from the JWT that {@link JwtAuthenticationFilter}
- * already validated and stored in {@code SecurityContext}.
- * <p>
- * Controllers call this and pass {@code userId} into services. Services must
- * not depend on Spring Security.
- */
+/** Reads the user the JWT filter already placed on the security context. */
 @Component
 public class JwtCurrentUserProvider implements CurrentUserProvider {
 

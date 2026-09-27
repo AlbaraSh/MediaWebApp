@@ -11,7 +11,6 @@ import org.springframework.test.context.ActiveProfiles;
 @ActiveProfiles("test")
 class MediaWebAppApplicationTests {
 
-	/** Smoke test: the Spring application context starts successfully with current config. */
 	@Test
 	void contextLoads() {
 	}
