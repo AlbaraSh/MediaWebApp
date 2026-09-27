@@ -2,6 +2,14 @@
 
 MyShelf (MediaWebApp) is a media catalog and personal tracking app for movies, TV shows, anime, and games. It keeps one shared catalog, lets each user maintain a private shelf of what they plan to consume, are consuming, finished, or dropped, and recommends titles from that history.
 
+Live demo: [https://myshelf-app.fly.dev](https://myshelf-app.fly.dev)
+
+<img src="docs/images/landing.png" alt="Landing page" width="720">
+
+<img src="docs/images/discover.png" alt="Discover catalog" width="720">
+
+<img src="docs/images/title.png" alt="Title page" width="720">
+
 The backend is a Spring Boot API. The frontend is a React single-page app. In production both ship as one container: the UI is built into the API’s static resources and served from the same origin.
 
 ## Features
