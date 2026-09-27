@@ -37,8 +37,10 @@ BEFORE UPDATE ON user_media
 FOR EACH ROW
 EXECUTE FUNCTION set_updated_at();
 
--- Default catalog-admin account. The password hash is a placeholder and cannot log in.
--- Id matches app.catalog-admin.user-id unless that property is overridden.
+--------------------------------------------------
+-- Dev user for CurrentUserProvider (no auth yet)
+-- UUID must match DevCurrentUserProvider.DEV_USER_ID
+--------------------------------------------------
 
 INSERT INTO users (id, username, email, password_hash)
 VALUES (
