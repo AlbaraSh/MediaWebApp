@@ -14,10 +14,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class UserMediaMapper {
 
-	/**
-	 * @param userMedia persisted entry with {@code media.mediaType} initialized
-	 * @return API response DTO
-	 */
+	/** {@code media.mediaType} must already be loaded. */
 	public UserMediaResponseDTO toResponseDto(UserMedia userMedia) {
 		Media media = userMedia.getMedia();
 		return new UserMediaResponseDTO(

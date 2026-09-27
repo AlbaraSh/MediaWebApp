@@ -26,12 +26,6 @@ public class AuthService {
 	private final PasswordEncoder passwordEncoder;
 	private final JwtService jwtService;
 
-	/**
-	 * Creates a new user with a BCrypt-hashed password.
-	 *
-	 * @param request validated register payload
-	 * @throws DuplicateResourceException if email or username is already taken
-	 */
 	@Transactional
 	public void register(RegisterRequestDTO request) {
 		String email = request.email().trim().toLowerCase();
@@ -52,13 +46,6 @@ public class AuthService {
 		userRepository.save(user);
 	}
 
-	/**
-	 * Validates credentials and returns a signed JWT for subsequent requests.
-	 *
-	 * @param request validated login payload
-	 * @return token wrapper for the client
-	 * @throws InvalidCredentialsException if the email is unknown or the password does not match
-	 */
 	@Transactional(readOnly = true)
 	public AuthResponseDTO login(LoginRequestDTO request) {
 		String email = request.email().trim().toLowerCase();

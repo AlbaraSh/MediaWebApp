@@ -26,12 +26,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * REST entry point for the media catalog.
- * <p>
- * Responsible only for HTTP concerns: routing, status codes, and binding
- * request/response bodies. Catalog CRUD lives in {@link MediaService};
- * search/fetch/import live in {@link ExternalMediaService}. JPA entities
- * are never returned from this class.
+ * Catalog HTTP API. Reads are public. Direct writes are admin-only;
+ * search and import go through external providers.
  */
 @RestController
 @RequestMapping("/api/media")
@@ -42,15 +38,6 @@ public class MediaController {
 	private final ExternalMediaService externalMediaService;
 	private final CurrentUserProvider currentUserProvider;
 
-	/**
-	 * Creates a media item.
-	 * <p>
-	 * {@code @Valid} triggers Bean Validation on {@link MediaRequestDTO}; failures
-	 * become HTTP 400 via {@code GlobalExceptionHandler}.
-	 *
-	 * @param requestDTO JSON body for the new media item
-	 * @return {@code 201 Created} with the persisted media representation
-	 */
 	@PostMapping
 	public ResponseEntity<MediaResponseDTO> createMedia(
 			@Valid @RequestBody MediaRequestDTO requestDTO) {
@@ -58,10 +45,6 @@ public class MediaController {
 		return ResponseEntity.status(HttpStatus.CREATED).body(createdMedia);
 	}
 
-	/**
-	 * Browses the local catalog with optional filters, QUALITY/YEAR/TITLE sort,
-	 * and required pagination. Breaking: response is a page envelope, not a JSON array.
-	 */
 	@GetMapping
 	public ResponseEntity<PageResponse<MediaResponseDTO>> getAllMedia(
 			@RequestParam(required = false) String type,
@@ -77,13 +60,7 @@ public class MediaController {
 				currentUserId, type, genre, year, q, sort, direction, page, size));
 	}
 
-	/**
-	 * Searches a single external provider selected by {@code type}.
-	 *
-	 * @param query free-text search
-	 * @param type  {@code MOVIE}, {@code TV}, {@code ANIME}, or {@code GAME}
-	 * @return up to 10 unified DTOs (never merged across providers)
-	 */
+	/** One provider per {@code type}. Results are not merged across providers. */
 	@GetMapping("/search")
 	public ResponseEntity<List<ExternalMediaDTO>> search(
 			@RequestParam String query,
@@ -91,10 +68,7 @@ public class MediaController {
 		return ResponseEntity.ok(externalMediaService.search(query, type));
 	}
 
-	/**
-	 * Fetches one external title by provider and external id. Does not persist.
-	 * TMDB ids must be prefixed ({@code movie:550} / {@code tv:1396}).
-	 */
+	/** Does not persist. TMDB ids stay prefixed, for example {@code movie:550}. */
 	@GetMapping("/external/{provider}/{externalId:.+}")
 	public ResponseEntity<ExternalMediaDTO> getByExternalId(
 			@PathVariable String provider,
@@ -102,11 +76,7 @@ public class MediaController {
 		return ResponseEntity.ok(externalMediaService.getByExternalId(provider, externalId));
 	}
 
-	/**
-	 * Imports external media into the catalog.
-	 *
-	 * @return {@code 201} when created, {@code 200} when already imported
-	 */
+	/** {@code 201} when the title is new, {@code 200} when that external id is already imported. */
 	@PostMapping("/import")
 	public ResponseEntity<MediaResponseDTO> importMedia(
 			@Valid @RequestBody ImportMediaRequestDTO requestDTO) {
@@ -115,14 +85,6 @@ public class MediaController {
 		return ResponseEntity.status(status).body(result.body());
 	}
 
-	/**
-	 * Fetches one media item by id.
-	 * <p>
-	 * Missing ids surface as {@code ResourceNotFoundException} → HTTP 404.
-	 *
-	 * @param id media primary key
-	 * @return {@code 200 OK} with the media response DTO
-	 */
 	@GetMapping("/{id}")
 	public ResponseEntity<MediaResponseDTO> getMediaById(@PathVariable UUID id) {
 		return ResponseEntity.ok(mediaService.getMediaById(id));

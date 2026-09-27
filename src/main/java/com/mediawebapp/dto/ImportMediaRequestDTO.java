@@ -3,12 +3,7 @@ package com.mediawebapp.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 
-/**
- * Incoming payload for {@code POST /api/media/import}.
- * <p>
- * {@code provider} is lowercase only; the service converts it to UPPERCASE
- * before reading or writing {@code media_external_ids.source}.
- */
+/** {@code provider} is lowercase. It is stored uppercase on {@code media_external_ids.source}. */
 public record ImportMediaRequestDTO(
 
 		@NotBlank(message = "Provider is required")

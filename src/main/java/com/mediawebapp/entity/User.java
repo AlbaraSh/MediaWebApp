@@ -12,13 +12,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/**
- * JPA mapping of the existing {@code users} table.
- * <p>
- * Maps to the Flyway-owned schema (UUID primary key, unique username and
- * email, bcrypt hash in {@code password_hash}). This class stays in the
- * persistence layer — auth responses never include the hash or the entity.
- */
+/** Persistence model only. API responses never include this entity or the password hash. */
 @Getter
 @Setter
 @NoArgsConstructor
@@ -26,7 +20,6 @@ import lombok.Setter;
 @Table(name = "users")
 public class User {
 
-	/** Primary key; generated as a UUID to match {@code users.id}. */
 	@Id
 	@GeneratedValue(strategy = GenerationType.UUID)
 	private UUID id;

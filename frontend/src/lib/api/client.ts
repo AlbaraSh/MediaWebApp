@@ -74,6 +74,7 @@ function toastApiError(body: ApiErrorBody): void {
   toast(message);
 }
 
+/** An expired token clears local state. Any other 401 only sends the user to login. */
 function handleUnauthorized(body: ApiErrorBody, skipAuthRedirect: boolean): void {
   if (skipAuthRedirect) {
     return;

@@ -3,9 +3,6 @@ package com.mediawebapp.dto;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 
-/**
- * Incoming payload for {@code POST /api/auth/login}.
- */
 public record LoginRequestDTO(
 
 		@NotBlank(message = "Email is required")

@@ -10,9 +10,6 @@ import jakarta.validation.constraints.Size;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * Incoming payload for creating a media item via {@code POST /api/media}.
- */
 public record MediaRequestDTO(
 
 		@NotBlank(message = "Title is required")

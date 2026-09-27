@@ -23,12 +23,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * REST entry point for the current user's personal media list.
- * <p>
- * Resolves identity via {@link CurrentUserProvider} and passes {@code userId}
- * into the service. Clients never send a user id.
- */
+/** The signed-in user's shelf. The user id comes from the JWT, never from the client. */
 @RestController
 @RequestMapping("/api/user-media")
 @RequiredArgsConstructor
@@ -37,11 +32,7 @@ public class UserMediaController {
 	private final UserMediaService userMediaService;
 	private final CurrentUserProvider currentUserProvider;
 
-	/**
-	 * Upserts a list entry for the current user.
-	 *
-	 * @return {@code 201} when created, {@code 200} when updated
-	 */
+	/** {@code 201} when the shelf row is new, {@code 200} when it is updated. */
 	@PostMapping
 	public ResponseEntity<UserMediaResponseDTO> upsert(
 			@Valid @RequestBody UserMediaRequestDTO requestDTO) {
@@ -51,10 +42,7 @@ public class UserMediaController {
 		return ResponseEntity.status(status).body(result.body());
 	}
 
-	/**
-	 * Lists the current user's media as a page. Default status is COMPLETED.
-	 * Breaking: response is a page envelope with counts, not a JSON array.
-	 */
+	/** Defaults to {@code COMPLETED}. The body includes status counts for the shelf tabs. */
 	@GetMapping
 	public ResponseEntity<LibraryPageResponse> getUserMedia(
 			@RequestParam(required = false) UserMediaStatus status,
@@ -72,27 +60,19 @@ public class UserMediaController {
 				userId, status, type, genre, minRating, maxRating, q, sort, direction, page, size));
 	}
 
-	/**
-	 * Distinct genre names on the current user's shelf (all statuses).
-	 */
+	/** Genres across every status, so the filter stays populated when a tab is empty. */
 	@GetMapping("/genres")
 	public ResponseEntity<List<String>> listShelfGenres() {
 		UUID userId = currentUserProvider.getCurrentUserId();
 		return ResponseEntity.ok(userMediaService.listShelfGenres(userId));
 	}
 
-	/**
-	 * Returns the current user's shelf row for the given catalog media id.
-	 */
 	@GetMapping("/{mediaId}")
 	public ResponseEntity<UserMediaResponseDTO> getByMediaId(@PathVariable UUID mediaId) {
 		UUID userId = currentUserProvider.getCurrentUserId();
 		return ResponseEntity.ok(userMediaService.getForUser(userId, mediaId));
 	}
 
-	/**
-	 * Deletes the current user's list entry for the given catalog media id.
-	 */
 	@DeleteMapping("/{mediaId}")
 	public ResponseEntity<Void> delete(@PathVariable UUID mediaId) {
 		UUID userId = currentUserProvider.getCurrentUserId();

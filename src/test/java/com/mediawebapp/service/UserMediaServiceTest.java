@@ -89,7 +89,6 @@ class UserMediaServiceTest {
 		media.setMediaType(mediaType);
 	}
 
-	/** First upsert for (user, media) inserts a row and reports created=true. */
 	@Test
 	void shouldCreateNewEntry() {
 		UserMediaRequestDTO request = new UserMediaRequestDTO(
@@ -123,7 +122,6 @@ class UserMediaServiceTest {
 		verify(entityManager).refresh(any(UserMedia.class));
 	}
 
-	/** Upsert with optional rating/review omitted still creates a valid entry. */
 	@Test
 	void shouldCreateEntryWithNullRatingAndReview() {
 		UserMediaRequestDTO request = new UserMediaRequestDTO(
@@ -148,7 +146,6 @@ class UserMediaServiceTest {
 		assertThat(result.body().review()).isNull();
 	}
 
-	/** Second upsert for the same (user, media) updates fields and reports created=false. */
 	@Test
 	void shouldUpdateExistingEntry() {
 		UserMedia existing = existingEntry(UserMediaStatus.PLANNED, null, null);
@@ -173,7 +170,6 @@ class UserMediaServiceTest {
 		verify(entityManager).refresh(any(UserMedia.class));
 	}
 
-	/** Update with null rating/review clears previously set values (full field replace). */
 	@Test
 	void shouldClearRatingAndReviewOnUpdate() {
 		UserMedia existing = existingEntry(UserMediaStatus.WATCHING, 8, "Great film");
@@ -229,7 +225,6 @@ class UserMediaServiceTest {
 		verify(userMediaRepository, times(2)).saveAndFlush(any(UserMedia.class));
 	}
 
-	/** If unique-constraint race recovery cannot reload the row, the original exception is rethrown. */
 	@Test
 	void shouldRethrowWhenRaceRecoveryCannotReloadEntry() {
 		UserMediaRequestDTO request = new UserMediaRequestDTO(
@@ -248,7 +243,6 @@ class UserMediaServiceTest {
 		verify(userMediaRepository, times(2)).findByUserIdAndMediaIdWithMedia(userId, mediaId);
 	}
 
-	/** Upsert fails with ResourceNotFoundException when the catalog media id does not exist. */
 	@Test
 	void shouldThrowWhenMediaNotFound() {
 		UserMediaRequestDTO request = new UserMediaRequestDTO(
@@ -264,7 +258,6 @@ class UserMediaServiceTest {
 		verify(userMediaRepository, never()).findByUserIdAndMediaIdWithMedia(any(), any());
 	}
 
-	/** Invalid status string fails before any persistence (enum valueOf). */
 	@Test
 	void shouldThrowWhenStatusInvalid() {
 		UserMediaRequestDTO request = new UserMediaRequestDTO(
@@ -277,7 +270,6 @@ class UserMediaServiceTest {
 		verify(userMediaRepository, never()).saveAndFlush(any());
 	}
 
-	/** listForUser defaults to COMPLETED and returns a page envelope with counts. */
 	@Test
 	void shouldReturnLibraryPageForUser() {
 		UserMedia entry = existingEntry(UserMediaStatus.COMPLETED, 7, "Nice");
@@ -303,7 +295,6 @@ class UserMediaServiceTest {
 				userId, UserMediaStatus.COMPLETED, null, null, null, null, null);
 	}
 
-	/** listForUser returns an empty page when the user has no matching entries. */
 	@Test
 	void shouldReturnEmptyLibraryPageWhenUserHasNoEntries() {
 		when(userMediaQueryRepository.countLibrary(
@@ -320,7 +311,6 @@ class UserMediaServiceTest {
 				any(), any(), any(), any(), any(), any(), any(), any(), any(), anyInt(), anyInt());
 	}
 
-	/** listForUser forwards an explicit status filter. */
 	@Test
 	void shouldReturnFilteredLibraryByStatus() {
 		UserMedia entry = existingEntry(UserMediaStatus.WATCHING, 10, null);
@@ -375,7 +365,6 @@ class UserMediaServiceTest {
 				.hasMessageContaining("minRating");
 	}
 
-	/** deleteForUser removes the entry when it exists for the current user. */
 	@Test
 	void shouldDeleteSuccessfully() {
 		when(userMediaRepository.existsByUserIdAndMedia_Id(userId, mediaId)).thenReturn(true);
@@ -385,7 +374,6 @@ class UserMediaServiceTest {
 		verify(userMediaRepository).deleteByUserIdAndMedia_Id(userId, mediaId);
 	}
 
-	/** deleteForUser throws when no entry exists for (user, media); delete is not called. */
 	@Test
 	void shouldThrowWhenDeletingMissingEntry() {
 		when(userMediaRepository.existsByUserIdAndMedia_Id(userId, mediaId)).thenReturn(false);

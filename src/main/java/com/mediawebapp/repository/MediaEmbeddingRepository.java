@@ -39,6 +39,7 @@ public class MediaEmbeddingRepository {
 			WHERE media_id IN (:mediaIds)
 			""";
 
+	// pgvector <=> is cosine distance, so similarity is 1 minus that distance.
 	private static final String FIND_SIMILAR = """
 			SELECT m.id AS media_id,
 			       m.title AS title,

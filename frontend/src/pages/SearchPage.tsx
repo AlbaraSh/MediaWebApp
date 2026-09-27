@@ -16,6 +16,7 @@ import { queryKeys } from "@/lib/queryKeys";
 import { loginPathWithNext } from "@/lib/redirect";
 import { optionalText, parsePage, parseType, setOrDelete } from "@/lib/url";
 
+// Survives React Strict Mode remounts so a resume-after-login import runs once.
 const autoImportGuard = new Set<string>();
 
 function guestResumePath(q: string, type: CatalogType, provider: string, externalId: string): string {

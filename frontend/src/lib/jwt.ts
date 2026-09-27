@@ -4,6 +4,7 @@ export type JwtClaims = {
   exp?: number;
 };
 
+/** Display claims only. The API still verifies the signature. */
 export function decodeJwt(token: string): JwtClaims | null {
   try {
     const segment = token.split(".")[1];

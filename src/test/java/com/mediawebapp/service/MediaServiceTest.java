@@ -93,7 +93,6 @@ class MediaServiceTest {
 		org.mockito.Mockito.lenient().when(genreService.resolveAll(any())).thenReturn(java.util.Set.of());
 	}
 
-	/** Valid create request with an existing media type persists and returns a full response DTO. */
 	@Test
 	void shouldCreateMediaSuccessfully() {
 		MediaRequestDTO request = new MediaRequestDTO(
@@ -141,7 +140,6 @@ class MediaServiceTest {
 				any());
 	}
 
-	/** Create with optional description and releaseYear omitted still persists successfully. */
 	@Test
 	void shouldCreateMediaWithNullOptionalFields() {
 		MediaRequestDTO request = new MediaRequestDTO(
@@ -172,7 +170,6 @@ class MediaServiceTest {
 		verify(mediaRepository).saveAndFlush(any(Media.class));
 	}
 
-	/** Create looks up-or-inserts genres and persists rating fields the same way import does. */
 	@Test
 	void shouldAttachGenresAndRatingOnCreate() {
 		MediaRequestDTO request = new MediaRequestDTO(
@@ -247,7 +244,6 @@ class MediaServiceTest {
 				.isEqualTo("https://image.tmdb.org/t/p/w500/f89U3ADr1oiB1s9GkdPOEpCl.jpg");
 	}
 
-	/** Create fails with ResourceNotFoundException when mediaTypeId does not exist; nothing is saved. */
 	@Test
 	void shouldThrowWhenMediaTypeNotFound() {
 		MediaRequestDTO request = new MediaRequestDTO(
@@ -271,7 +267,6 @@ class MediaServiceTest {
 		verify(mediaEmbeddingService, never()).generateAndStore(any(), any(), any(), any());
 	}
 
-	/** discover returns an empty page when the catalog has no matching rows. */
 	@Test
 	void shouldReturnEmptyDiscoverPageWhenNoMediaExists() {
 		when(mediaRepository.findAverageExternalRating()).thenReturn(null);
@@ -345,7 +340,6 @@ class MediaServiceTest {
 				.hasMessageContaining("size");
 	}
 
-	/** getMediaById returns the matching media DTO when the id exists. */
 	@Test
 	void shouldReturnMediaById() {
 		Media media = persistedMedia("Interstellar", (short) 2014);
@@ -361,7 +355,6 @@ class MediaServiceTest {
 		verify(mediaRepository).findByIdWithMediaType(mediaId);
 	}
 
-	/** getMediaById throws ResourceNotFoundException when no media exists for the given id. */
 	@Test
 	void shouldThrowWhenMediaNotFound() {
 		when(mediaRepository.findByIdWithMediaType(mediaId)).thenReturn(Optional.empty());

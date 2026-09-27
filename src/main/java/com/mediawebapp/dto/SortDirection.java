@@ -3,9 +3,7 @@ package com.mediawebapp.dto;
 import com.mediawebapp.exception.BadRequestException;
 import java.util.Locale;
 
-/**
- * Allowed {@code direction} values for GET {@code /api/media}.
- */
+/** Omitted discover direction sorts title A–Z and every other sort high-to-low. */
 public enum SortDirection {
 	ASC,
 	DESC;
