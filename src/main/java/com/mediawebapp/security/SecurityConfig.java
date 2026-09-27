@@ -74,6 +74,27 @@ public class SecurityConfig {
 	}
 
 	@Bean
+	public ImportRateLimiter importRateLimiter() {
+		return new ImportRateLimiter();
+	}
+
+	@Bean
+	public ImportRateLimitFilter importRateLimitFilter(
+			ImportRateLimiter importRateLimiter,
+			JsonMapper jsonMapper) {
+		return new ImportRateLimitFilter(importRateLimiter, jsonMapper);
+	}
+
+	@Bean
+	public FilterRegistrationBean<ImportRateLimitFilter> importRateLimitFilterRegistration(
+			ImportRateLimitFilter importRateLimitFilter) {
+		FilterRegistrationBean<ImportRateLimitFilter> registration =
+				new FilterRegistrationBean<>(importRateLimitFilter);
+		registration.setEnabled(false);
+		return registration;
+	}
+
+	@Bean
 	public JwtAuthenticationFilter jwtAuthenticationFilter() {
 		return new JwtAuthenticationFilter(jwtService, authenticationEntryPoint, userRepository);
 	}
@@ -97,7 +118,8 @@ public class SecurityConfig {
 	public SecurityFilterChain securityFilterChain(
 			HttpSecurity http,
 			JwtAuthenticationFilter jwtAuthenticationFilter,
-			SearchRateLimitFilter searchRateLimitFilter) throws Exception {
+			SearchRateLimitFilter searchRateLimitFilter,
+			ImportRateLimitFilter importRateLimitFilter) throws Exception {
 		http
 				.csrf(AbstractHttpConfigurer::disable)
 				.cors(Customizer.withDefaults())
@@ -134,7 +156,8 @@ public class SecurityConfig {
 						.anyRequest()
 						.authenticated())
 				.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-				.addFilterAfter(searchRateLimitFilter, JwtAuthenticationFilter.class);
+				.addFilterAfter(searchRateLimitFilter, JwtAuthenticationFilter.class)
+				.addFilterAfter(importRateLimitFilter, SearchRateLimitFilter.class);
 
 		return http.build();
 	}

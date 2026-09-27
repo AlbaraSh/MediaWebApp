@@ -2,6 +2,14 @@
 
 MyShelf (MediaWebApp) is a media catalog and personal tracking app for movies, TV shows, anime, and games. It keeps one shared catalog, lets each user maintain a private shelf of what they plan to consume, are consuming, finished, or dropped, and recommends titles from that history.
 
+Live demo: [https://myshelf-app.fly.dev](https://myshelf-app.fly.dev)
+
+<img src="docs/images/landing.png" alt="Landing page" width="720">
+
+<img src="docs/images/discover.png" alt="Discover catalog" width="720">
+
+<img src="docs/images/title.png" alt="Title page" width="720">
+
 The backend is a Spring Boot API. The frontend is a React single-page app. In production both ship as one container: the UI is built into the API’s static resources and served from the same origin.
 
 ## Features
@@ -377,14 +385,14 @@ docker build -t mediawebapp .
 docker run --env-file .env -p 8080:8080 mediawebapp
 ```
 
-Production app config is `fly.toml` (`myshelf`, region `lhr`). The app listens on 8080 inside the machine, forces HTTPS, and keeps one machine running. CORS is locked to `https://myshelf.fly.dev`. Catalog seed runs on startup.
+Production app config is `fly.toml` (`myshelf-app`, region `lhr`). The app listens on 8080 inside the machine, forces HTTPS, and keeps one machine running. CORS is locked to `https://myshelf-app.fly.dev`. Catalog seed runs on startup.
 
 PostgreSQL is a separate Fly Postgres Flex 17 image (`docker/postgres`) with pgvector 0.8.1 compiled in. Its app config is `docker/postgres/fly.toml`.
 
 Deploy from CI uses `flyctl deploy --remote-only`. Locally, with a Fly token:
 
 ```bash
-flyctl deploy --remote-only --app myshelf
+flyctl deploy --remote-only --app myshelf-app
 ```
 
 Set `JWT_SECRET`, `TMDB_API_KEY`, `RAWG_API_KEY`, `OPENAI_API_KEY`, and the database URL as Fly secrets. Do not commit them.

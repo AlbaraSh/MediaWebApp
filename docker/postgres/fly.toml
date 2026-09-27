@@ -1,4 +1,4 @@
-app = "myshelf-pg17"
+app = "myshelf-albara-pg17"
 primary_region = "lhr"
 
 [env]
