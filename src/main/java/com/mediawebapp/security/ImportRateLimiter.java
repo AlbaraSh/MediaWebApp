@@ -13,4 +13,8 @@ public class ImportRateLimiter extends SearchRateLimiter {
 	public ImportRateLimiter() {
 		super(BURST_LIMIT, BURST_WINDOW_MS, DAILY_LIMIT, DAILY_WINDOW_MS);
 	}
+
+	ImportRateLimiter(int burstLimit, int dailyLimit) {
+		super(burstLimit, BURST_WINDOW_MS, dailyLimit, DAILY_WINDOW_MS);
+	}
 }
